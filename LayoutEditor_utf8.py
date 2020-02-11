@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# coding: utf-8
+# coding: UTF-8
 
 
 import sys
@@ -9,139 +8,143 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication
 # GUI
 from gui import Ui_MainWindow
-
-
 try:
     import xml.etree.cElementTree as et
-except:
+except ImportError:
     import xml.etree.ElementTree as et
 
 
-class LE_MainWindow(QtWidgets.QMainWindow):
-    def __init__(self, parent=None):
-        super(LE_MainWindow, self).__init__()
+class LEMainWindow(QtWidgets.QMainWindow):
+    '''
+    Основной класс
+    '''
+    def __init__(self):
+        super(LEMainWindow, self).__init__()
         self.ui = Ui_MainWindow()
-        self.setupUi()
+        self.setup_ui()
+        # Список некоммерческих присоединений
+        self.non_profit_connections = []
 
-    def setupUi(self):
+
+    def setup_ui(self):
+        '''
+        Инициализация элементов графического интерфейса.
+        Установка значений по умолчанию.
+        '''
         self.ui.setupUi(self)
-        
         # Строка меню
-        self.initMenu()
-
+        self.init_menu()
         # treeView
-        self.templateDataModel = QtGui.QStandardItemModel()
-        self.templateDataModel.setColumnCount(1)
+        self.template_data_model = QtGui.QStandardItemModel()
+        self.template_data_model.setColumnCount(1)
         self.ui.templateDataTree.header().hide()
         self.ui.templateDataTree.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        self.ui.templateDataTree.setModel(self.templateDataModel)
-
-        
+        self.ui.templateDataTree.setModel(self.template_data_model)
         # Название вкладок
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_1), 'Статус')
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_2), 'Объём')
-        
-        
         # Вкладка 'Статус'
-
         # Выбор типа присоединения
         self.ui.connectionType_label.setText('Присоединения:')
-        self.ui.comboBox_connection_type.addItems(('', 'Все некомерч.', 'Все'))
-        
-
+        self.ui.comboBox_connection_type.addItems(('', 'Все некоммерч.', 'Все'))
         # Комбобоксы выбора интервала
         self.ui.startTime_label.setText('Начало:')
         self.ui.startPeriod_comboBox.setStyleSheet('combobox-popup: 0;')
         self.ui.endTime_label.setText('Окончание:')
         self.ui.endPeriod_comboBox.setStyleSheet('combobox-popup: 0;')
-                
         # Инициализация интервалов
-        self.setPeriod()
-
+        self.set_period(init=True)
         # Реинициализация времемени окончания после выбора времени начала
-        self.ui.startPeriod_comboBox.currentIndexChanged.connect(lambda: self.setPeriod(
-            startTime=self.ui.startPeriod_comboBox.currentText()))
-        
-        
+        self.ui.startPeriod_comboBox.currentIndexChanged.connect(lambda: self.set_period(
+            start_Time=self.ui.startPeriod_comboBox.currentText()))
         # Комбобокс выбора флага
         self.ui.selectFlag_label.setText('Флаг:')
         self.ui.comboBox_select_flag.addItems(('0', '1'))
-        
         # Кнопка применить
         self.ui.pushButton_apply.setText('Применить')
         # self.ui.pushButton_apply.setEnabled(False)
-        self.ui.pushButton_apply.clicked.connect(lambda: self.clicked_pushButton_apply())
-    
-    # Инициализация пунктов строки меню
-    def initMenu(self):
+        self.ui.pushButton_apply.clicked.connect(self.clicked_pushbutton_apply)
+
+
+    def init_menu(self):
         '''
         Инициализация строки меню.
         Наполнение пунктов меню, привязка действий к функциям, задание параметров по умолчанию.
         '''
         filemenu = self.ui.menubar.addMenu('Файл')
-        self.openXmlAction = QtWidgets.QAction('Открыть макет', self)
-        self.openXmlAction.triggered.connect(self.openXml)
-        filemenu.addAction(self.openXmlAction)
+        self.open_xml_action = QtWidgets.QAction('Открыть макет', self)
+        self.open_xml_action.triggered.connect(self.open_xml)
+        filemenu.addAction(self.open_xml_action)
 
-        self.saveXmlAction = QtWidgets.QAction('Сохранить макет', self)
-        self.saveXmlAction.triggered.connect(self.saveXml)
-        filemenu.addAction(self.saveXmlAction)
-        self.saveXmlAction.setEnabled(False)
+        self.save_xml_action = QtWidgets.QAction('Сохранить макет', self)
+        self.save_xml_action.triggered.connect(self.save_xml)
+        filemenu.addAction(self.save_xml_action)
+        self.save_xml_action.setEnabled(False)
 
-        self.exitAction = QtWidgets.QAction('Выход', self)
-        self.exitAction.triggered.connect(QtWidgets.qApp.quit)
-        filemenu.addAction(self.exitAction)        
+        self.exit_action = QtWidgets.QAction('Выход', self)
+        self.exit_action.triggered.connect(QtWidgets.qApp.quit)
+        filemenu.addAction(self.exit_action)        
 
 
-    # Инициализация интервалов
-    def setPeriod(self, startTime='00:00'):
+    def set_period(self, init=False, start_Time="00:00"):
         '''
         Инициализация combobox'ов с выбором интервалов.
         Генерирует наполнение в зависимости от выбора начального значения.
         Контролирует корректность выбранного периода.
         '''
-        # Список стартовых значений генерируется только при запуске программы
-        if startTime == '00:00':
-            self.ui.startPeriod_comboBox.addItems([":".join((h.zfill(2), m)) for h, m in iter(
-                (lambda i: [str(datetime.timedelta(minutes=x))[:-3].split(':') for x in i] )(i for i in range(0, 1411 ,30)))])
-        
         # Преобразование стартового значения для генерации значений периода окончания
-        startTime = int(datetime.timedelta(hours=int(startTime.split(':')[0]), minutes=int(startTime.split(':')[1])).seconds/60)
-        
+        start_Time = int(datetime.timedelta(hours=int(start_Time.split(':')[0]),
+            minutes=int(start_Time.split(':')[1])).seconds/60)
+        if not init:
+            # Сдвиг на 30 минут для врмени окончания периода
+            start_Time += 30 
+        # Генератор списка периода по получасовкам
+        period_generator = [":".join((h.zfill(2), m)) for h, m in iter(
+                (lambda i: [str(datetime.timedelta(minutes=x))[:-3].split(':') for x in i] )
+                    (i for i in range(start_Time, 1411, 30)))]
+        # Список стартовых значений генерируется только при запуске программы
+        if init:
+            #init введена из-за падения Qt при реинициализации startPriod_comboBox (bug)
+            self.ui.startPeriod_comboBox.addItems(period_generator)
         self.ui.endPeriod_comboBox.clear()
-        
-        self.ui.endPeriod_comboBox.addItems([":".join((h.zfill(2), m)) for h, m in iter(
-                (lambda i: [str(datetime.timedelta(minutes=x))[:-3].split(':') for x in i] )(i for i in range(startTime+30, 1411 ,30)))])
-        
+        self.ui.endPeriod_comboBox.addItems(period_generator)
         # Всегда должно быть значение конца суток
         self.ui.endPeriod_comboBox.addItem('00:00')
 
 
-    def openXml(self):
-        # if self.templateDataModel.rowCount() > 0:
-        #     self.message('Сохрани макет', 1)
-        #     self.templateDataModel.clear()
+    def open_xml(self):
+        '''
+        Метод открытия шаблона для обработки.
+        '''
+        if self.template_data_model.rowCount() > 0:
+            self.send_message('Сохрани макет', 1)
+            self.template_data_model.clear()
         self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
             'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
-        # self.ui.statusbar.showMessage(self.templateXMLfile)
+        # self.ui.statusbar.showsend_message(self.templateXMLfile)
         if os.path.exists(self.templateXMLfile):
             self.tree = et.ElementTree(file=self.templateXMLfile)
-            self.xmlToTreeView(self.tree.getroot())
+            self.xml_to_treeview(self.tree.getroot())
         # сохранение 'шапки' макета 
         # if not self.saveHeader():
         # if os.path.exists(self.templateXMLfile):
         #         self.tree.__init__(file=self.templateXMLfile)
-        #         self.xmlToTreeView(self.tree.getroot())
+        #         self.xml_to_treeview(self.tree.getroot())
 
 
-    def saveXml(self):
-        pass
+    def save_xml(self):
+        '''
+        Сохранение исправленного шаблона.
+        '''
+        print('Сохранить')
 
 
-    # Заполнение модели данных для treeview
-    def xmlToTreeView(self, root):
+    def xml_to_treeview(self, root):
+        '''
+        Заполнение модели данных для treeview
+        '''
         # self.bad_joining_comboboxModel.clear()
-        rootItem = QtGui.QStandardItem()
+        root_item = QtGui.QStandardItem()
         measuringpoint = QtGui.QStandardItem()
         measuringpoint_item = ''
         measuringpoint_list = []
@@ -151,12 +154,12 @@ class LE_MainWindow(QtWidgets.QMainWindow):
             if child.tag == 'area':
                 for subchild in child:
                     if subchild.tag == 'inn':
-                        rootItem = QtGui.QStandardItem(subchild.text)
-                        self.templateDataModel.appendRow(rootItem)
+                        root_item = QtGui.QStandardItem(subchild.text)
+                        self.template_data_model.appendRow(root_item)
             #
             if child.tag == 'measuringpoint':
                 measuringpoint = QtGui.QStandardItem(child.attrib['name'])
-                rootItem.appendRow(measuringpoint)
+                root_item.appendRow(measuringpoint)
                 measuringpoint_item = child.attrib['name']
             #
             if child.tag == 'measuringchannel':
@@ -170,36 +173,103 @@ class LE_MainWindow(QtWidgets.QMainWindow):
             if child.tag == 'value':
                 try:
                     period.appendRow(QtGui.QStandardItem(child.text+' : '+child.attrib['status']))
-                except:
+                except KeyError:
                     period.appendRow(QtGui.QStandardItem(child.text))
                 try:
-                    child.attrib['status'] == '1'
-                    measuringpoint.setBackground(QtGui.QColor('#F15A24'))
-                    measuringpoint_list.append(measuringpoint_item)
-                    measuringchannel.setBackground(QtGui.QColor('#F15A24'))
-                    period.setBackground(QtGui.QColor('#F15A24'))
-                except:
+                    if child.attrib['status'] == '1':
+                        measuringpoint.setBackground(QtGui.QColor('#F15A24'))
+                        measuringpoint_list.append(measuringpoint_item)
+                        measuringchannel.setBackground(QtGui.QColor('#F15A24'))
+                        period.setBackground(QtGui.QColor('#F15A24'))
+                except KeyError:
                     pass
-        bad_joining_combobox = []            
-        for joining in measuringpoint_list:
-            if joining not in bad_joining_combobox:
-                bad_joining_combobox.append(joining)
-                # self.bad_joining_comboboxModel.appendRow(QtGui.QStandardItem(joining))
+        self.non_profit_connections = set(measuringpoint_list)
         # Раскрыть корневой элемент в treeView
-        self.ui.templateDataTree.setExpanded(self.templateDataModel.index(0, 0), True)
+        self.ui.templateDataTree.setExpanded(self.template_data_model.index(0, 0), True)
         # Активировать пункт меню сохраняющий макет
-        self.saveXmlAction.setEnabled(True)
+        self.save_xml_action.setEnabled(True)
         # Активировать кнопку 'Применить'
         self.ui.pushButton_apply.setEnabled(True)
 
 
-    def clicked_pushButton_apply(self):
-        print(self.templateDataModel.itemData(self.ui.templateDataTree.currentIndex())[0])
+    def change_status(self, measuringchannel, start, end, flag):
+        '''
+        Функция меняет флаг в указанном интервале для каждого измерительного канала.
+        '''
+        for period in measuringchannel:
+            if ((period.attrib['start'] >= start) and (period.attrib['end'] <= end)):
+                for value in period:
+                    if flag == 0:
+                        try:
+                            del value.attrib['status']
+                        except KeyError:
+                            pass
+                    else:
+                        value.set('status', "1")
+        return measuringchannel
+
+
+    def clicked_pushbutton_apply(self):
+        '''
+        Действия по нажатию кнопки "Применить".
+        '''
+        if self.template_data_model.rowCount() < 1:
+            self.send_message("Требуется загрузить макет.")
+            return()
+        start = "".join(self.ui.startPeriod_comboBox.currentText().split(':'))
+        end = "".join(self.ui.endPeriod_comboBox.currentText().split(':'))
+        flag = int(self.ui.comboBox_select_flag.currentText())
+        root = self.tree.getroot()
+        # Если присоединение было выбрано в TreeView
+        if self.ui.comboBox_connection_type.currentIndex() == 0:
+            try:
+                treeview_selected = self.template_data_model.itemData(
+                    self.ui.templateDataTree.currentIndex())[0]
+            except KeyError:
+                treeview_selected = ''
+            for child in root.iterfind('.//'):
+                if (child.tag == 'measuringpoint') and (child.attrib['name'] == treeview_selected):
+                    for measuringchannel in child:
+                        measuringchannel = self.change_status(measuringchannel, start, end, flag)
+        # Для всех некоммерческих значений
+        elif self.ui.comboBox_connection_type.currentIndex() == 1:
+            # проход по списку из модели данных некоммерческих присоединений
+            for connection in self.non_profit_connections:
+                print(connection)
+                # for measuringpoint in root.findall("./area/measuringpoint"):
+                #     if measuringpoint.attrib['name'] == self.
+                #         for measuringchannel in measuringpoint:
+                #             # условия перебора по выбранному периоду
+                #             measuringchannel = self.changeStatus(measuringchannel, start, end, time_interval_flag)
+        # Для всего шаблона
+        elif self.ui.comboBox_connection_type.currentIndex() == 2:
+            print("Все")
+
+        self.template_data_model.clear()
+        self.xml_to_treeview(root)
+
+
+    def send_send_message(self, msg, save=0):
+        '''
+        Вывод сообщений и диалогов.
+        '''
+        massage_box = QtWidgets.QMessageBox()
+        if save == 1:
+            btn = massage_box.question(self, "Сообщение", msg, QtWidgets.QMessageBox.Yes|QtWidgets.QMessageBox.No)
+        else:
+            btn = massage_box.question(self, "Сообщение", msg, QtWidgets.QMessageBox.Ok)
+        if btn == QtWidgets.QMessageBox.Yes:
+            self.save_xml()
+        else:
+            pass
 
 
 def main():
+    '''
+    Создание экземпляра окна приложения и его запуск.
+    '''
     app = QApplication(sys.argv)
-    form = LE_MainWindow()
+    form = LEMainWindow()
     form.show()
     app.exec_()
 
