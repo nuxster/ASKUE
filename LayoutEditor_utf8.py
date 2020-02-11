@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-
+import time
 import sys
 import os
 import datetime
@@ -143,7 +143,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         Заполнение модели данных для treeview
         '''
-        # self.bad_joining_comboboxModel.clear()
         root_item = QtGui.QStandardItem()
         measuringpoint = QtGui.QStandardItem()
         measuringpoint_item = ''
@@ -208,7 +207,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
                         value.set('status', "1")
         return measuringchannel
 
-
+    
     def clicked_pushbutton_apply(self):
         '''
         Действия по нажатию кнопки "Применить".
@@ -233,23 +232,20 @@ class LEMainWindow(QtWidgets.QMainWindow):
                         measuringchannel = self.change_status(measuringchannel, start, end, flag)
         # Для всех некоммерческих значений
         elif self.ui.comboBox_connection_type.currentIndex() == 1:
-            # проход по списку из модели данных некоммерческих присоединений
+            # Проход по списку некоммерческих присоединений
             for connection in self.non_profit_connections:
-                print(connection)
-                # for measuringpoint in root.findall("./area/measuringpoint"):
-                #     if measuringpoint.attrib['name'] == self.
-                #         for measuringchannel in measuringpoint:
-                #             # условия перебора по выбранному периоду
-                #             measuringchannel = self.changeStatus(measuringchannel, start, end, time_interval_flag)
+                for measuringpoint in root.findall("./area/measuringpoint"):
+                    if measuringpoint.attrib['name'] == connection:
+                        for measuringchannel in measuringpoint:
+                            measuringchannel = self.change_status(measuringchannel, start, end, flag)
         # Для всего шаблона
         elif self.ui.comboBox_connection_type.currentIndex() == 2:
             print("Все")
-
         self.template_data_model.clear()
         self.xml_to_treeview(root)
 
 
-    def send_send_message(self, msg, save=0):
+    def send_message(self, msg, save=0):
         '''
         Вывод сообщений и диалогов.
         '''
