@@ -121,8 +121,8 @@ class LEMainWindow(QtWidgets.QMainWindow):
             self.template_data_model.clear()
         self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
             'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
-        # self.ui.statusbar.showsend_message(self.templateXMLfile)
         if os.path.exists(self.templateXMLfile):
+            self.ui.statusbar.showMessage(f"Макет: {self.templateXMLfile.split(os.sep)[-1:][0]}")
             self.tree = et.ElementTree(file=self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
         # сохранение 'шапки' макета 
@@ -195,8 +195,12 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         Функция меняет флаг в указанном интервале для каждого измерительного канала.
         '''
+        processing_interval = False
         for period in measuringchannel:
-            if ((period.attrib['start'] >= start) and (period.attrib['end'] <= end)):
+            if (period.attrib['start'] == start):
+                processing_interval = True
+            # Обработка временного интервала
+            if processing_interval:
                 for value in period:
                     if flag == 0:
                         try:
@@ -205,7 +209,8 @@ class LEMainWindow(QtWidgets.QMainWindow):
                             pass
                     else:
                         value.set('status', "1")
-        return measuringchannel
+            if period.attrib['end'] == end:
+                return measuringchannel
 
     
     def clicked_pushbutton_apply(self):
@@ -225,14 +230,13 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 treeview_selected = self.template_data_model.itemData(
                     self.ui.templateDataTree.currentIndex())[0]
             except KeyError:
-                treeview_selected = ''
+                self.send_message('Повторите выбор элемента.')
             for child in root.iterfind('.//'):
                 if (child.tag == 'measuringpoint') and (child.attrib['name'] == treeview_selected):
                     for measuringchannel in child:
                         measuringchannel = self.change_status(measuringchannel, start, end, flag)
         # Для всех некоммерческих значений
         elif self.ui.comboBox_connection_type.currentIndex() == 1:
-            # Проход по списку некоммерческих присоединений
             for connection in self.non_profit_connections:
                 for measuringpoint in root.findall("./area/measuringpoint"):
                     if measuringpoint.attrib['name'] == connection:
@@ -240,7 +244,10 @@ class LEMainWindow(QtWidgets.QMainWindow):
                             measuringchannel = self.change_status(measuringchannel, start, end, flag)
         # Для всего шаблона
         elif self.ui.comboBox_connection_type.currentIndex() == 2:
-            print("Все")
+            for child in root.iterfind('.//'):
+                if (child.tag == 'measuringpoint'):
+                    for measuringchannel in child:
+                        measuringchannel = self.change_status(measuringchannel, start, end, flag)
         self.template_data_model.clear()
         self.xml_to_treeview(root)
 
