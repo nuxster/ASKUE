@@ -9,10 +9,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication
 # GUI
 from gui import Ui_MainWindow
-# try:
-#     import xml.etree.cElementTree as et
-# except ImportError:
-#     import xml.etree.ElementTree as et
+
 
 class LEMainWindow(QtWidgets.QMainWindow):
     '''
@@ -24,8 +21,8 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.setup_ui()
         # Список некоммерческих присоединений
         self.non_profit_connections = []
-        # Объект для работы с данными XML-файла
-        # self.tree = et.ElementTree()
+        #  Состояние макета (редактировался?)
+        self.edited_by_template = False
 
 
     def setup_ui(self):
@@ -64,7 +61,8 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.comboBox_select_flag.addItems(('0', '1'))
         # Кнопка применить
         self.ui.pushButton_apply.setText('Применить')
-        # self.ui.pushButton_apply.setEnabled(False)
+        # По умолчанию кнопка не активна
+        self.ui.pushButton_apply.setEnabled(False)
         self.ui.pushButton_apply.clicked.connect(self.clicked_pushbutton_apply)
 
 
@@ -73,6 +71,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         Инициализация строки меню.
         Наполнение пунктов меню, привязка действий к функциям, задание параметров по умолчанию.
         '''
+        # Меню "Файл"
         filemenu = self.ui.menubar.addMenu('Файл')
         self.open_xml_action = QtWidgets.QAction('Открыть макет', self)
         self.open_xml_action.triggered.connect(self.open_xml)
@@ -85,7 +84,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
 
         self.exit_action = QtWidgets.QAction('Выход', self)
         self.exit_action.triggered.connect(QtWidgets.qApp.quit)
-        filemenu.addAction(self.exit_action)        
+        filemenu.addAction(self.exit_action)
 
 
     def set_period(self, init=False, start_Time="00:00"):
@@ -113,7 +112,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # Всегда должно быть значение конца суток
         self.ui.endPeriod_comboBox.addItem('00:00')
 
-
+    
     def open_xml(self):
         '''
         Метод открытия шаблона для обработки.
@@ -126,7 +125,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         if os.path.exists(self.templateXMLfile):
             self.tree = et.parse(self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
-            # 
+            # Имя файла-шаблона в ообщении строки состояния
             self.ui.statusbar.showMessage(f"Макет: {self.templateXMLfile.split(os.sep)[-1:][0]}")
 
 
@@ -274,8 +273,9 @@ def main():
     Создание экземпляра окна приложения и его запуск.
     '''
     app = QApplication(sys.argv)
-    form = LEMainWindow()
-    form.show()
+    window = LEMainWindow()
+    window.setWindowTitle('Редактор макетов')
+    window.show()
     app.exec_()
 
 
