@@ -4,15 +4,15 @@ import time
 import sys
 import os
 import datetime
+import lxml.etree as et
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication
 # GUI
 from gui import Ui_MainWindow
-try:
-    import xml.etree.cElementTree as et
-except ImportError:
-    import xml.etree.ElementTree as et
-
+# try:
+#     import xml.etree.cElementTree as et
+# except ImportError:
+#     import xml.etree.ElementTree as et
 
 class LEMainWindow(QtWidgets.QMainWindow):
     '''
@@ -24,6 +24,8 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.setup_ui()
         # Список некоммерческих присоединений
         self.non_profit_connections = []
+        # Объект для работы с данными XML-файла
+        # self.tree = et.ElementTree()
 
 
     def setup_ui(self):
@@ -122,21 +124,21 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
             'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
         if os.path.exists(self.templateXMLfile):
-            self.ui.statusbar.showMessage(f"Макет: {self.templateXMLfile.split(os.sep)[-1:][0]}")
-            self.tree = et.ElementTree(file=self.templateXMLfile)
+            self.tree = et.parse(self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
-        # сохранение 'шапки' макета 
-        # if not self.saveHeader():
-        # if os.path.exists(self.templateXMLfile):
-        #         self.tree.__init__(file=self.templateXMLfile)
-        #         self.xml_to_treeview(self.tree.getroot())
+            # 
+            self.ui.statusbar.showMessage(f"Макет: {self.templateXMLfile.split(os.sep)[-1:][0]}")
 
 
     def save_xml(self):
         '''
         Сохранение исправленного шаблона.
         '''
-        print('Сохранить')
+        savefile, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Сохранить макет', self.templateXMLfile, 'Макет XML (*xml)')
+        try:
+            self.tree.write(savefile, encoding='windows-1251')
+        except Exception as exception_event:
+            self.message("Ошибка записи макета: {0}".format(exception_event))
 
 
     def xml_to_treeview(self, root):
