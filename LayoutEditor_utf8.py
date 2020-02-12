@@ -59,6 +59,9 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # Комбобокс выбора флага
         self.ui.selectFlag_label.setText('Флаг:')
         self.ui.comboBox_select_flag.addItems(('0', '1'))
+
+        # 
+
         # Кнопка применить
         self.ui.pushButton_apply.setText('Применить')
         # По умолчанию кнопка не активна
