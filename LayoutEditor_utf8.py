@@ -10,6 +10,9 @@ from PyQt5.QtWidgets import QApplication
 # GUI
 from gui import Ui_MainWindow
 
+# class MyProxyModel(QtCore.QIdentityProxyModel):
+    # def mapFromSource(self, sourceIndex):
+    
 
 class LEMainWindow(QtWidgets.QMainWindow):
     '''
@@ -37,8 +40,11 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.template_data_model = QtGui.QStandardItemModel()
         self.template_data_model.setColumnCount(1)
         self.ui.templateDataTree.header().hide()
-        self.ui.templateDataTree.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        # self.ui.templateDataTree.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        # proxymodel = MyProxyModel()
+        # proxymodel.setSourceModel(self.template_data_model)
         self.ui.templateDataTree.setModel(self.template_data_model)
+        self.ui.templateDataTree.clicked.connect(lambda: self.treeview_clicked())
         # Название вкладок
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_1), 'Статус')
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_2), 'Объём')
@@ -88,6 +94,29 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.exit_action = QtWidgets.QAction('Выход', self)
         self.exit_action.triggered.connect(QtWidgets.qApp.quit)
         filemenu.addAction(self.exit_action)
+
+    def treeview_clicked(self):
+        try:
+            treeview_selected = self.template_data_model.itemData(self.ui.templateDataTree.currentIndex())[0]
+        except KeyError:
+            self.send_message('Повторите выбор элемента.')
+        # root = self.tree.getroot()
+        # for child in root.iterfind('.//'):
+        #     if (child.tag == 'value'): # and (child.['name'] == treeview_selected):
+        #         print(child.text)
+
+
+        #  if child.tag == 'value':
+        #         try:
+        #             period.appendRow(QtGui.QStandardItem(child.text+' : '+child.attrib['status']))
+        #         except KeyError:
+        #             period.appendRow(QtGui.QStandardItem(child.text))
+        # self.ui.templateDataTree.setItemDelegate(MyDelegate(self.template_data_model.index(0, 0), self.ui.templateDataTree.currentIndex()))
+        # parent = self.ui.templateDataTree.currentIndex().parent()
+        # if parent == self.template_data_model.index(0, 0):
+            # self.ui.templateDataTree.setItemDelegate(MyDelegate())
+            # self.ui.templateDataTree.item
+            # self.ui.templateDataTree.model() .item(self.ui.templateDataTree.currentIndex().row(), 0).setBackground(QtGui.QColor('#F15A24'))
 
 
     def set_period(self, init=False, start_Time="00:00"):
@@ -170,14 +199,15 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 measuringpoint.appendRow(measuringchannel)
             #
             if child.tag == 'period':
-                period = QtGui.QStandardItem(str(child.attrib['start']+' - '+child.attrib['end']+' --> [ '+child[0].text+' ]'))
+                # period = QtGui.QStandardItem(str(child.attrib['start']+' - '+child.attrib['end']+' --> [ '+child[].text+' ]'))
+                period = QtGui.QStandardItem(f'{child.attrib["start"]} - {child.attrib["end"]}')
                 measuringchannel.appendRow(period)
             #
             if child.tag == 'value':
                 try:
-                    period.appendRow(QtGui.QStandardItem(child.text+' : '+child.attrib['status']))
+                    period.appendRow(QtGui.QStandardItem(f'Объем: {child.text} : Статус: {child.attrib["status"]}'))
                 except KeyError:
-                    period.appendRow(QtGui.QStandardItem(child.text))
+                    period.appendRow(QtGui.QStandardItem(f'Объем: {child.text} : Статус: 0'))
                 try:
                     if child.attrib['status'] == '1':
                         measuringpoint.setBackground(QtGui.QColor('#F15A24'))
