@@ -152,7 +152,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         #     self.template_data_model.clear()
         # self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
         #     'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
-        self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/80020_7841312071_20190624_45254_5100000200.xml"
+        self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/Макеты/80020_7841312071_20200205_59409_5100003400.xml"
         if os.path.exists(self.templateXMLfile):
             self.tree = et.parse(self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
@@ -183,14 +183,17 @@ class LEMainWindow(QtWidgets.QMainWindow):
                         self.template_data_model.appendRow(root_item)                     
                     # Точка учета
                     if subchild.tag == 'measuringpoint':
-                        measuringpoint = QtGui.QStandardItem()
-                        measuringpoint.setChild(root_item.rowCount(), 1, QtGui.QStandardItem(subchild.attrib['name']))
-                        self.template_data_model.appendRow(measuringpoint)
+                        measuringpoint = QtGui.QStandardItem(subchild.attrib['name'])
+                        root_item.setChild(root_item.rowCount(), 1, measuringpoint)
                         # Канал
-                        # for mch in subchild:
-                        #     if mch.tag == 'measuringchannel':
-                        #         measuringchannel = QtGui.QStandardItem(mch.attrib['desc'])
-                        #         root_item.setChild(root_item.rowCount(), 2, measuringchannel)
+                        for mch in subchild:
+                            if mch.tag == 'measuringchannel':
+                                print(measuringpoint)
+                                # measuringpoint.appendRow(QtGui.QStandardItem(mch.attrib['desc']))
+                                # measuringchannel = QtGui.QStandardItem(mch.attrib['desc'])
+                                # root_item.appendRow(QtGui.QStandardItem(mch.attrib['desc']))
+                                # measuringpoint.setChild(measuringpoint.rowCount(), 2, QtGui.QStandardItem(mch.attrib['desc']))
+                        
                                 # # Период
                                 # for per in mch:
                                 #     if per.tag == 'period':
