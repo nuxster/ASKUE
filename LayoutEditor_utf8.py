@@ -10,9 +10,6 @@ from PyQt5.QtWidgets import QApplication
 # GUI
 from gui import Ui_MainWindow
 
-# class MyProxyModel(QtCore.QIdentityProxyModel):
-    # def mapFromSource(self, sourceIndex):
-    
 
 class LEMainWindow(QtWidgets.QMainWindow):
     '''
@@ -38,13 +35,12 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.init_menu()
         # treeView
         self.template_data_model = QtGui.QStandardItemModel()
-        self.template_data_model.setColumnCount(1)
-        self.ui.templateDataTree.header().hide()
-        # self.ui.templateDataTree.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        # proxymodel = MyProxyModel()
-        # proxymodel.setSourceModel(self.template_data_model)
+        self.template_data_model.setColumnCount(5)
+        # self.ui.templateDataTree.header().hide()
+        self.ui.templateDataTree.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.ui.templateDataTree.setModel(self.template_data_model)
-        self.ui.templateDataTree.clicked.connect(lambda: self.treeview_clicked())
+        self.template_data_model.setHorizontalHeaderLabels(['Макет', 'Точка учета', 'Канал', 'Начало', 'Окончание'])
+        # self.ui.templateDataTree.clicked.connect(lambda: self.treeview_clicked())
         # Название вкладок
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_1), 'Статус')
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_2), 'Объём')
@@ -73,6 +69,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # По умолчанию кнопка не активна
         self.ui.pushButton_apply.setEnabled(False)
         self.ui.pushButton_apply.clicked.connect(self.clicked_pushbutton_apply)
+        self.open_xml()
 
 
     def init_menu(self):
@@ -96,10 +93,11 @@ class LEMainWindow(QtWidgets.QMainWindow):
         filemenu.addAction(self.exit_action)
 
     def treeview_clicked(self):
-        try:
-            treeview_selected = self.template_data_model.itemData(self.ui.templateDataTree.currentIndex())[0]
-        except KeyError:
-            self.send_message('Повторите выбор элемента.')
+        pass
+        # try:
+        #     treeview_selected = self.template_data_model.itemData(self.ui.templateDataTree.currentIndex())[0]
+        # except KeyError:
+        #     self.send_message('Повторите выбор элемента.')
         # root = self.tree.getroot()
         # for child in root.iterfind('.//'):
         #     if (child.tag == 'value'): # and (child.['name'] == treeview_selected):
@@ -149,15 +147,16 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         Метод открытия шаблона для обработки.
         '''
-        if self.template_data_model.rowCount() > 0:
-            self.send_message('Сохрани макет', 1)
-            self.template_data_model.clear()
-        self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
-            'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
+        # if self.template_data_model.rowCount() > 0:
+        #     self.send_message('Сохрани макет', 1)
+        #     self.template_data_model.clear()
+        # self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
+        #     'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
+        self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/80020_7841312071_20190624_45254_5100000200.xml"
         if os.path.exists(self.templateXMLfile):
             self.tree = et.parse(self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
-            # Имя файла-шаблона в ообщении строки состояния
+            # Имя файла-шаблона в сообщении строки состояния
             self.ui.statusbar.showMessage(f"Макет: {self.templateXMLfile.split(os.sep)[-1:][0]}")
 
 
@@ -176,47 +175,49 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         Заполнение модели данных для treeview
         '''
-        root_item = QtGui.QStandardItem()
-        measuringpoint = QtGui.QStandardItem()
-        measuringpoint_item = ''
-        measuringpoint_list = []
-        measuringchannel = QtGui.QStandardItem()
-        period = QtGui.QStandardItem()
         for child in root.iterfind('.//'):
             if child.tag == 'area':
                 for subchild in child:
                     if subchild.tag == 'inn':
                         root_item = QtGui.QStandardItem(subchild.text)
-                        self.template_data_model.appendRow(root_item)
-            #
-            if child.tag == 'measuringpoint':
-                measuringpoint = QtGui.QStandardItem(child.attrib['name'])
-                root_item.appendRow(measuringpoint)
-                measuringpoint_item = child.attrib['name']
-            #
-            if child.tag == 'measuringchannel':
-                measuringchannel = QtGui.QStandardItem(child.attrib['desc'])
-                measuringpoint.appendRow(measuringchannel)
-            #
-            if child.tag == 'period':
-                # period = QtGui.QStandardItem(str(child.attrib['start']+' - '+child.attrib['end']+' --> [ '+child[].text+' ]'))
-                period = QtGui.QStandardItem(f'{child.attrib["start"]} - {child.attrib["end"]}')
-                measuringchannel.appendRow(period)
-            #
-            if child.tag == 'value':
-                try:
-                    period.appendRow(QtGui.QStandardItem(f'Объем: {child.text} : Статус: {child.attrib["status"]}'))
-                except KeyError:
-                    period.appendRow(QtGui.QStandardItem(f'Объем: {child.text} : Статус: 0'))
-                try:
-                    if child.attrib['status'] == '1':
-                        measuringpoint.setBackground(QtGui.QColor('#F15A24'))
-                        measuringpoint_list.append(measuringpoint_item)
-                        measuringchannel.setBackground(QtGui.QColor('#F15A24'))
-                        period.setBackground(QtGui.QColor('#F15A24'))
-                except KeyError:
-                    pass
-        self.non_profit_connections = set(measuringpoint_list)
+                        self.template_data_model.appendRow(root_item)                     
+                    # Точка учета
+                    if subchild.tag == 'measuringpoint':
+                        measuringpoint = QtGui.QStandardItem()
+                        measuringpoint.setChild(root_item.rowCount(), 1, QtGui.QStandardItem(subchild.attrib['name']))
+                        self.template_data_model.appendRow(measuringpoint)
+                        # Канал
+                        # for mch in subchild:
+                        #     if mch.tag == 'measuringchannel':
+                        #         measuringchannel = QtGui.QStandardItem(mch.attrib['desc'])
+                        #         root_item.setChild(root_item.rowCount(), 2, measuringchannel)
+                                # # Период
+                                # for per in mch:
+                                #     if per.tag == 'period':
+                                #         start = QtGui.QStandardItem(per.attrib['start'])
+                                #         end = QtGui.QStandardItem(per.attrib['start'])
+                                #         root_item.setChild(root_item.rowCount(), 3, QtGui.QStandardItem(per.attrib['start']))
+            #     i += 1
+            #     period.setItem(i, 3, QtGui.QStandardItem(child.attrib['start']))
+            #     measuringchannel.appendRow(period)
+            #     # period = QtGui.QStandardItem(str(child.attrib['start']+' - '+child.attrib['end']+' --> [ '+child[].text+' ]'))
+            #     period = QtGui.QStandardItem(f'{child.attrib["start"]} - {child.attrib["end"]}')
+            #     measuringchannel.appendRow(period)
+            # #
+            # if child.tag == 'value':
+            #     try:
+            #         period.appendRow(QtGui.QStandardItem(f'Объем: {child.text} : Статус: {child.attrib["status"]}'))
+            #     except KeyError:
+            #         period.appendRow(QtGui.QStandardItem(f'Объем: {child.text} : Статус: 0'))
+            #     try:
+            #         if child.attrib['status'] == '1':
+            #             measuringpoint.setBackground(QtGui.QColor('#F15A24'))
+            #             measuringpoint_list.append(measuringpoint_item)
+            #             measuringchannel.setBackground(QtGui.QColor('#F15A24'))
+            #             period.setBackground(QtGui.QColor('#F15A24'))
+            #     except KeyError:
+            #         pass
+        # self.non_profit_connections = set(measuringpoint_list)
         # Раскрыть корневой элемент в treeView
         self.ui.templateDataTree.setExpanded(self.template_data_model.index(0, 0), True)
         # Активировать пункт меню сохраняющий макет
