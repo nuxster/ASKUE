@@ -162,7 +162,8 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         self.template_data_model.clear()
         self.template_data_model.setHorizontalHeaderLabels(self.header_labels)
-        non_profit_connections_list = []
+        template_dict = {}
+        # non_profit_connections_list = []
         for child in root.iterfind('.//'):
             if child.tag == 'area':
                 for subchild in child:
@@ -171,42 +172,42 @@ class LEMainWindow(QtWidgets.QMainWindow):
                         self.template_data_model.appendRow(root_item)
                     # Точка учета
                     if subchild.tag == 'measuringpoint':
-                        measuringpoint = [QtGui.QStandardItem(),
-                            QtGui.QStandardItem(subchild.attrib['name'])]
-                        root_item.appendRow(measuringpoint)
+                        template_dict[subchild.attrib['name']] = {}
                         # Канал
                         for mch in subchild:
                             if mch.tag == 'measuringchannel':
-                                # measuringchannel = mch.attrib['code']
-                                # measuringchannel = [QtGui.QStandardItem(False),
-                                #     QtGui.QStandardItem(False),
-                                #     QtGui.QStandardItem(mch.attrib['desc'])]
-                                # measuringpoint[0].appendRow(measuringchannel)
-                                pass
+                                template_dict[subchild.attrib['name']].update({mch.attrib['code']:{}})
                             # Период, флаг, объем
                             for per in mch:
                                 # Период
                                 if per.tag == 'period':
-                                    period = [QtGui.QStandardItem(),
-                                        QtGui.QStandardItem(),
-                                        QtGui.QStandardItem(per.attrib['start']),
-                                        QtGui.QStandardItem(per.attrib['end'])]
+                                    template_dict[subchild.attrib['name']][mch.attrib['code']].update({(per.attrib['start'], per.attrib['end']):{}})
                                 for val in per:
-                                    # Флаг
+                                    # Флаг и объем
                                     if val.tag == 'value':
                                         try:
-                                            period.append(QtGui.QStandardItem(val.attrib['status']))
-                                            non_profit_connections_list.append(measuringpoint[1].text())
-                                            [i.setBackground(QtGui.QColor('#F15A24')) for i in measuringpoint]
-                                            # [i.setBackground(QtGui.QColor('#F15A24')) for i in measuringchannel]
-                                            [i.setBackground(QtGui.QColor('#F15A24')) for i in period]
+                                            template_dict[subchild.attrib['name']][mch.attrib['code']].update({(per.attrib['start'], per.attrib['end']):(val.attrib['status'], val.text)})
                                         except KeyError:
-                                            period.append(QtGui.QStandardItem('0'))
-                                    # Объем
-                                        if mch.attrib['code'] == '01':
-                                            period.append(QtGui.QStandardItem(val.text))
-                                        measuringpoint[0].appendRow(period)
-        self.non_profit_connections = set(non_profit_connections_list)
+                                            template_dict[subchild.attrib['name']][mch.attrib['code']].update({(per.attrib['start'], per.attrib['end']):('0', val.text)})
+
+        for mp in template_dict.keys():
+            measuringpoint = [QtGui.QStandardItem(), QtGui.QStandardItem(mp)]
+            root_item.appendRow(measuringpoint)
+            # Берем получасовки и флаги по первому каналу
+            for per in template_dict[mp][list(template_dict[mp].keys())[0]]:
+                period = [QtGui.QStandardItem(), QtGui.QStandardItem(), QtGui.QStandardItem(per[0]), QtGui.QStandardItem(per[1])]
+                period.append(QtGui.QStandardItem(template_dict[mp][list(template_dict[mp].keys())[0]][per][0]))
+                for measuringchannel in template_dict[mp].keys():
+                    period.append(QtGui.QStandardItem(template_dict[mp][measuringchannel][per][1]))
+                measuringpoint[0].appendRow(period)
+            
+            # root_item.appendRow([QtGui.QStandardItem(), QtGui.QStandardItem(measuringpoint),])
+                # for measuringchannel in template_dict:
+                #     print(measuringchannel)
+                #     root_item.appendRow(QtGui.QStandardItem(measuringchannel))
+
+
+        # self.non_profit_connections = set(non_profit_connections_list)
         # Раскрыть корневой элемент в treeView
         self.ui.templateDataTree.setExpanded(self.template_data_model.index(0, 0), True)
         # Активировать пункт меню сохраняющий макет
