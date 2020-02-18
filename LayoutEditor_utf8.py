@@ -35,8 +35,8 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.init_menu()
         # treeView
         self.template_data_model = QtGui.QStandardItemModel()
-        self.template_data_model.setColumnCount(7)
-        self.header_labels = ['Макет', 'Точка учета', 'Канал', 'Начало', 'Окончание', 'Статус', 'Объем']
+        self.template_data_model.setColumnCount(9)
+        self.header_labels = ['Макет', 'Точка учета', 'Начало', 'Окончание', 'Статус', 'A+', 'A-', 'R+', 'R-']
         self.template_data_model.setHorizontalHeaderLabels(self.header_labels)
         self.ui.templateDataTree.clicked.connect(lambda: self.treeview_clicked())
         self.ui.templateDataTree.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
@@ -66,7 +66,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # По умолчанию кнопка не активна
         self.ui.pushButton_apply.setEnabled(False)
         self.ui.pushButton_apply.clicked.connect(self.clicked_pushbutton_apply)
-        # self.open_xml()
+        self.open_xml()
 
 
     def init_menu(self):
@@ -91,8 +91,14 @@ class LEMainWindow(QtWidgets.QMainWindow):
 
 
     def treeview_clicked(self):
-        treeview_selected = self.template_data_model.itemData(self.ui.templateDataTree.currentIndex())[0]
-        print(treeview_selected)
+        # view = self.ui.templateDataTree.selectionModel()
+        indexes = self.ui.templateDataTree.selectedIndexes()
+        if len(indexes) == 7:
+            self.ui.value_lineEdit.setText(indexes[-1].data(QtCore.Qt.DisplayRole))
+            # print(indexes)
+        # root_index = self.ui.templateDataTree.rootIndex()
+        # for i in indexes:
+        #     print(i.data(QtCore.Qt.DisplayRole))
 
 
     def set_period(self, init=False, start_Time="00:00"):
@@ -128,10 +134,10 @@ class LEMainWindow(QtWidgets.QMainWindow):
         if self.template_data_model.rowCount() > 0:
             self.send_message('Сохрани макет', 1)
             self.template_data_model.clear()
-        self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
-            'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
+        # self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
+        #     'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
         # self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/Макеты/80020_7841312071_20200205_59409_5100003400.xml"
-        # self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/80020_7841312071_20190624_45254_5100000200.xml"
+        self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/80020_7841312071_20190624_45254_5100000200.xml"
         if os.path.exists(self.templateXMLfile):
             self.tree = et.parse(self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
@@ -165,23 +171,24 @@ class LEMainWindow(QtWidgets.QMainWindow):
                         self.template_data_model.appendRow(root_item)
                     # Точка учета
                     if subchild.tag == 'measuringpoint':
-                        measuringpoint = [QtGui.QStandardItem(False),
+                        measuringpoint = [QtGui.QStandardItem(),
                             QtGui.QStandardItem(subchild.attrib['name'])]
                         root_item.appendRow(measuringpoint)
                         # Канал
                         for mch in subchild:
                             if mch.tag == 'measuringchannel':
-                                measuringchannel = [QtGui.QStandardItem(False),
-                                    QtGui.QStandardItem(False),
-                                    QtGui.QStandardItem(mch.attrib['desc'])]
-                                measuringpoint[0].appendRow(measuringchannel)
+                                # measuringchannel = mch.attrib['code']
+                                # measuringchannel = [QtGui.QStandardItem(False),
+                                #     QtGui.QStandardItem(False),
+                                #     QtGui.QStandardItem(mch.attrib['desc'])]
+                                # measuringpoint[0].appendRow(measuringchannel)
+                                pass
                             # Период, флаг, объем
                             for per in mch:
                                 # Период
                                 if per.tag == 'period':
-                                    period = [QtGui.QStandardItem(False),
-                                        QtGui.QStandardItem(False),
-                                        QtGui.QStandardItem(False),
+                                    period = [QtGui.QStandardItem(),
+                                        QtGui.QStandardItem(),
                                         QtGui.QStandardItem(per.attrib['start']),
                                         QtGui.QStandardItem(per.attrib['end'])]
                                 for val in per:
@@ -191,13 +198,14 @@ class LEMainWindow(QtWidgets.QMainWindow):
                                             period.append(QtGui.QStandardItem(val.attrib['status']))
                                             non_profit_connections_list.append(measuringpoint[1].text())
                                             [i.setBackground(QtGui.QColor('#F15A24')) for i in measuringpoint]
-                                            [i.setBackground(QtGui.QColor('#F15A24')) for i in measuringchannel]
+                                            # [i.setBackground(QtGui.QColor('#F15A24')) for i in measuringchannel]
                                             [i.setBackground(QtGui.QColor('#F15A24')) for i in period]
                                         except KeyError:
                                             period.append(QtGui.QStandardItem('0'))
                                     # Объем
-                                        period.append(QtGui.QStandardItem(val.text))
-                                        measuringchannel[0].appendRow(period)
+                                        if mch.attrib['code'] == '01':
+                                            period.append(QtGui.QStandardItem(val.text))
+                                        measuringpoint[0].appendRow(period)
         self.non_profit_connections = set(non_profit_connections_list)
         # Раскрыть корневой элемент в treeView
         self.ui.templateDataTree.setExpanded(self.template_data_model.index(0, 0), True)
