@@ -17,7 +17,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(LEMainWindow, self).__init__()
         # Некоммерческие присоединения
-        self.non_profit_connections = []
+        self.non_profit_measuringpoints = []
         #  Состояние макета (редактировался?)
         self.edited_by_template = False
         #
@@ -35,32 +35,46 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.init_menu()
         # treeView
         self.template_data_model = QtGui.QStandardItemModel()
-        self.template_data_model.setColumnCount(9)
-        self.header_labels = ['Макет', 'Точка учета', 'Начало', 'Окончание', 'Статус', 'A+', 'A-', 'R+', 'R-']
+        # self.template_data_model.setColumnCount(9)
+        self.header_labels = ['Точка учета', 'Начало', 'Окончание', 'Статус', 'A+', 'A-', 'R+', 'R-']
         self.template_data_model.setHorizontalHeaderLabels(self.header_labels)
         self.ui.templateDataTree.clicked.connect(lambda: self.treeview_clicked())
         self.ui.templateDataTree.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.ui.templateDataTree.setAlternatingRowColors(True)
+        self.ui.templateDataTree.setAllColumnsShowFocus(True)
+        self.ui.templateDataTree.setMinimumWidth(640)
+        self.ui.templateDataTree.setMinimumHeight(480)
         self.ui.templateDataTree.setModel(self.template_data_model)
         # Название вкладок
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_1), 'Статус')
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_2), 'Объём')
-        # Вкладка 'Статус'
-        # Выбор типа присоединения
-        self.ui.connectionType_label.setText('Присоединения:')
-        self.ui.comboBox_connection_type.addItems(('', 'Все некоммерч.', 'Все'))
+        # Общая область
+        self.ui.label_selected_measuringpoint.setText('Присоединение')
+
         # Комбобоксы выбора интервала
         self.ui.startTime_label.setText('Начало:')
         self.ui.startPeriod_comboBox.setStyleSheet('combobox-popup: 0;')
         self.ui.endTime_label.setText('Окончание:')
         self.ui.endPeriod_comboBox.setStyleSheet('combobox-popup: 0;')
+
+        # Вкладка 'Статус'
+        # Выбор типа присоединения
+        self.ui.measuringpointType_label.setText('Присоединения:')
+        self.ui.comboBox_measuringpoint_type.addItems(('', 'Все некоммерч.', 'Все'))
+        
         # Инициализация интервалов
-        self.set_period(init=True)
+        self.populate_period(init=True)
         # Реинициализация времемени окончания после выбора времени начала
-        self.ui.startPeriod_comboBox.currentIndexChanged.connect(lambda: self.set_period(
-            start_Time=self.ui.startPeriod_comboBox.currentText()))
+        self.ui.startPeriod_comboBox.currentIndexChanged.connect(lambda: self.populate_period(
+            start_time=self.ui.startPeriod_comboBox.currentText()))
         # Комбобокс выбора флага
         self.ui.selectFlag_label.setText('Флаг:')
         self.ui.comboBox_select_flag.addItems(('0', '1'))
+        # Вкладка 'Объем'
+        self.ui.label_a_plus.setText('Активная приём (A+)')
+        self.ui.label_a_minus.setText('Активная отдача (A-)')
+        self.ui.label_r_plus.setText('Реактивная приём (R+)')
+        self.ui.label_r_minus.setText('Реактивная отдача (R-)')
         # Кнопка применить
         self.ui.pushButton_apply.setText('Применить')
         # По умолчанию кнопка не активна
@@ -91,32 +105,44 @@ class LEMainWindow(QtWidgets.QMainWindow):
 
 
     def treeview_clicked(self):
-        # view = self.ui.templateDataTree.selectionModel()
         indexes = self.ui.templateDataTree.selectedIndexes()
-        if len(indexes) == 7:
-            self.ui.value_lineEdit.setText(indexes[-1].data(QtCore.Qt.DisplayRole))
-            # print(indexes)
-        # root_index = self.ui.templateDataTree.rootIndex()
-        # for i in indexes:
-        #     print(i.data(QtCore.Qt.DisplayRole))
+        measuringpoint = indexes[0].parent().data(QtCore.Qt.DisplayRole) or indexes[0].data(QtCore.Qt.DisplayRole)
+        self.populate_comboBox_selected_measuringpoint(current_item=measuringpoint)
+
+        try:
+            # Вывод объемов на редактирование по каналам
+            self.ui.lineEdit_a_plus.setText(indexes[5].data(QtCore.Qt.DisplayRole))
+            self.ui.lineEdit_a_minus.setText(indexes[6].data(QtCore.Qt.DisplayRole))
+            self.ui.lineEdit_r_plus.setText(indexes[7].data(QtCore.Qt.DisplayRole))
+            self.ui.lineEdit_r_minus.setText(indexes[8].data(QtCore.Qt.DisplayRole))
+            # Установка интервала в combobox'ах в соответствии с выбором в treeview
+            self.populate_period(start_time=':'.join((indexes[1].data(QtCore.Qt.DisplayRole)[:2], indexes[1].data(QtCore.Qt.DisplayRole)[2:])))
+        except IndexError:
+            pass
+        
+        # self.ui.startPeriod_comboBox.currentIndexChanged.connect(lambda: self.populate_period(
+        #     start_time=self.ui.startPeriod_comboBox.currentText()))
 
 
-    def set_period(self, init=False, start_Time="00:00"):
+    def populate_period(self, init=False, start_time="00:00"):
         '''
         Инициализация combobox'ов с выбором интервалов.
         Генерирует наполнение в зависимости от выбора начального значения.
         Контролирует корректность выбранного периода.
         '''
+        # Выполняется при заданном начальном времени
+        if not init:
+            self.ui.startPeriod_comboBox.setCurrentIndex(self.ui.startPeriod_comboBox.findText(start_time))
         # Преобразование стартового значения для генерации значений периода окончания
-        start_Time = int(datetime.timedelta(hours=int(start_Time.split(':')[0]),
-            minutes=int(start_Time.split(':')[1])).seconds/60)
+        start_time = int(datetime.timedelta(hours=int(start_time.split(':')[0]),
+            minutes=int(start_time.split(':')[1])).seconds/60)
         if not init:
             # Сдвиг на 30 минут для врмени окончания периода
-            start_Time += 30 
+            start_time += 30 
         # Генератор списка периода по получасовкам
         period_generator = [":".join((h.zfill(2), m)) for h, m in iter(
                 (lambda i: [str(datetime.timedelta(minutes=x))[:-3].split(':') for x in i] )
-                    (i for i in range(start_Time, 1411, 30)))]
+                    (i for i in range(start_time, 1411, 30)))]
         # Список стартовых значений генерируется только при запуске программы
         if init:
             #init введена из-за падения Qt при реинициализации startPriod_comboBox (bug)
@@ -126,7 +152,18 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # Всегда должно быть значение конца суток
         self.ui.endPeriod_comboBox.addItem('00:00')
 
-    
+
+    def populate_comboBox_selected_measuringpoint(self, current_item=0, measuringpoints=0):
+        '''
+        Заполнение combobox'а присоединениями из текущего макета.
+        '''
+        if measuringpoints:
+            self.ui.comboBox_selected_measuringpoint.clear()
+            self.ui.comboBox_selected_measuringpoint.addItems(measuringpoints)
+        else:
+            self.ui.comboBox_selected_measuringpoint.setCurrentIndex(self.ui.comboBox_selected_measuringpoint.findText(current_item))
+
+
     def open_xml(self):
         '''
         Метод открытия шаблона для обработки.
@@ -162,54 +199,56 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         self.template_data_model.clear()
         self.template_data_model.setHorizontalHeaderLabels(self.header_labels)
-        template_dict = {}
-        # non_profit_connections_list = []
+        # Временный список для некоммерческих присоединений
+        non_profit_measuringpoints_list = []
+        measuringpoint_list = []
         for child in root.iterfind('.//'):
             if child.tag == 'area':
                 for subchild in child:
-                    if subchild.tag == 'inn':
-                        root_item = QtGui.QStandardItem(subchild.text)
-                        self.template_data_model.appendRow(root_item)
                     # Точка учета
                     if subchild.tag == 'measuringpoint':
-                        template_dict[subchild.attrib['name']] = {}
+                        measuringpoint = QtGui.QStandardItem(subchild.attrib['name'])
+                        measuringpoint_list.append(subchild.attrib['name'])
+                        self.template_data_model.appendRow(measuringpoint)
                         # Канал
-                        for mch in subchild:
-                            if mch.tag == 'measuringchannel':
-                                template_dict[subchild.attrib['name']].update({mch.attrib['code']:{}})
-                            # Период, флаг, объем
-                            for per in mch:
-                                # Период
-                                if per.tag == 'period':
-                                    template_dict[subchild.attrib['name']][mch.attrib['code']].update({(per.attrib['start'], per.attrib['end']):{}})
-                                for val in per:
-                                    # Флаг и объем
-                                    if val.tag == 'value':
-                                        try:
-                                            template_dict[subchild.attrib['name']][mch.attrib['code']].update({(per.attrib['start'], per.attrib['end']):(val.attrib['status'], val.text)})
-                                        except KeyError:
-                                            template_dict[subchild.attrib['name']][mch.attrib['code']].update({(per.attrib['start'], per.attrib['end']):('0', val.text)})
-
-        for mp in template_dict.keys():
-            measuringpoint = [QtGui.QStandardItem(), QtGui.QStandardItem(mp)]
-            root_item.appendRow(measuringpoint)
-            # Берем получасовки и флаги по первому каналу
-            for per in template_dict[mp][list(template_dict[mp].keys())[0]]:
-                period = [QtGui.QStandardItem(), QtGui.QStandardItem(), QtGui.QStandardItem(per[0]), QtGui.QStandardItem(per[1])]
-                period.append(QtGui.QStandardItem(template_dict[mp][list(template_dict[mp].keys())[0]][per][0]))
-                for measuringchannel in template_dict[mp].keys():
-                    period.append(QtGui.QStandardItem(template_dict[mp][measuringchannel][per][1]))
-                measuringpoint[0].appendRow(period)
-            
-            # root_item.appendRow([QtGui.QStandardItem(), QtGui.QStandardItem(measuringpoint),])
-                # for measuringchannel in template_dict:
-                #     print(measuringchannel)
-                #     root_item.appendRow(QtGui.QStandardItem(measuringchannel))
-
-
-        # self.non_profit_connections = set(non_profit_connections_list)
+                        # Счетчик колонок для отображения объемов по каналам
+                        column_counter = 3
+                        for measuringchannel_in in subchild:
+                            # Колонка объемов по канала
+                            measuringchannel_volume = []
+                            # С каждым проходом добавляем колонку
+                            column_counter += 1
+                            if measuringchannel_in.tag == 'measuringchannel':
+                                # Период, флаг, объем
+                                for period_in in measuringchannel_in:
+                                    # Период (заполняем по первому каналу)
+                                    if period_in.tag == 'period':
+                                        if measuringchannel_in.attrib['code'] == '01':
+                                            period = [QtGui.QStandardItem(),
+                                                QtGui.QStandardItem(period_in.attrib['start']),
+                                                QtGui.QStandardItem(period_in.attrib['end']),]
+                                            # Флаг по первому каналу
+                                            for value_in in period_in:
+                                                try:
+                                                    period.append(QtGui.QStandardItem(value_in.attrib['status']),)
+                                                    non_profit_measuringpoints_list.append(measuringpoint.text())
+                                                    # Окрашиваем ячейки с некоммерческой информацией
+                                                    [i.setBackground(QtGui.QColor('#F15A24')) for i in [measuringpoint,] + period]
+                                                except KeyError:
+                                                    period.append(QtGui.QStandardItem('0'),)
+                                                # Объем по первому каналу
+                                                period.append(QtGui.QStandardItem(value_in.text),)
+                                                measuringpoint.appendRow(period)
+                                        # Объемы по остальным каналам
+                                        for value_in in period_in:
+                                            measuringchannel_volume.append(QtGui.QStandardItem(value_in.text))
+                            measuringpoint.insertColumn(column_counter, measuringchannel_volume)
+        # Заполнение combobox'а присоединениями из текущего макета 
+        self.populate_comboBox_selected_measuringpoint(measuringpoints=measuringpoint_list)
+        # Удаление лишнего из списка некоммерческих присоединений
+        self.non_profit_measuringpoints = set(non_profit_measuringpoints_list)
         # Раскрыть корневой элемент в treeView
-        self.ui.templateDataTree.setExpanded(self.template_data_model.index(0, 0), True)
+        # self.ui.templateDataTree.setExpanded(self.template_data_model.index(0, 0), True)
         # Активировать пункт меню сохраняющий макет
         self.save_xml_action.setEnabled(True)
         # Активировать кнопку 'Применить'
@@ -250,25 +289,20 @@ class LEMainWindow(QtWidgets.QMainWindow):
         flag = int(self.ui.comboBox_select_flag.currentText())
         root = self.tree.getroot()
         # Если присоединение было выбрано в TreeView
-        if self.ui.comboBox_connection_type.currentIndex() == 0:
-            try:
-                treeview_selected = self.template_data_model.itemData(
-                    self.ui.templateDataTree.currentIndex())[0]
-            except KeyError:
-                self.send_message('Повторите выбор элемента.')
+        if self.ui.comboBox_measuringpoint_type.currentIndex() == 0:
             for child in root.iterfind('.//'):
-                if (child.tag == 'measuringpoint') and (child.attrib['name'] == treeview_selected):
+                if (child.tag == 'measuringpoint') and (child.attrib['name'] == self.ui.comboBox_selected_measuringpoint.currentText()):
                     for measuringchannel in child:
                         measuringchannel = self.change_status(measuringchannel, start, end, flag)
         # Для всех некоммерческих значений
-        elif self.ui.comboBox_connection_type.currentIndex() == 1:
-            for connection in self.non_profit_connections:
+        elif self.ui.comboBox_measuringpoint_type.currentIndex() == 1:
+            for measuringpoint_in in self.non_profit_measuringpoints:
                 for measuringpoint in root.findall("./area/measuringpoint"):
-                    if measuringpoint.attrib['name'] == connection:
+                    if measuringpoint.attrib['name'] == measuringpoint_in:
                         for measuringchannel in measuringpoint:
                             measuringchannel = self.change_status(measuringchannel, start, end, flag)
         # Для всего шаблона
-        elif self.ui.comboBox_connection_type.currentIndex() == 2:
+        elif self.ui.comboBox_measuringpoint_type.currentIndex() == 2:
             for child in root.iterfind('.//'):
                 if (child.tag == 'measuringpoint'):
                     for measuringchannel in child:
