@@ -61,7 +61,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.measuringpointType_label.setText('Присоединения:')
         self.ui.comboBox_measuringpoint_type.addItems(('', 'Все некоммерч.', 'Все'))
         # Инициализация интервалов
-        self.populate_period(init=True)
+        self.populate_period()
         # Реинициализация времемени окончания после выбора времени начала
         self.ui.startPeriod_comboBox.currentIndexChanged.connect(lambda: self.populate_period(
             start_time=self.ui.startPeriod_comboBox.currentText()))
@@ -120,44 +120,43 @@ class LEMainWindow(QtWidgets.QMainWindow):
         measuringpoint = indexes[0].parent().data(QtCore.Qt.DisplayRole) or indexes[0].data(QtCore.Qt.DisplayRole)
         self.populate_comboBox_selected_measuringpoint(current_item=measuringpoint)
         try:
-            # Вывод объемов на редактирование по каналам
-            self.ui.lineEdit_a_plus.setText(indexes[5].data(QtCore.Qt.DisplayRole))
-            self.ui.lineEdit_a_minus.setText(indexes[6].data(QtCore.Qt.DisplayRole))
-            self.ui.lineEdit_r_plus.setText(indexes[7].data(QtCore.Qt.DisplayRole))
-            self.ui.lineEdit_r_minus.setText(indexes[8].data(QtCore.Qt.DisplayRole))
             # Установка интервала в combobox'ах в соответствии с выбором в treeview
-            self.populate_period(start_time=':'.join((indexes[1].data(QtCore.Qt.DisplayRole)[:2], indexes[1].data(QtCore.Qt.DisplayRole)[2:])))
-        except IndexError:
+            self.populate_period(start_time=indexes[1].data(QtCore.Qt.DisplayRole))
+            # Вывод объемов на редактирование по каналам
+            self.ui.lineEdit_a_plus.setText(indexes[4].data(QtCore.Qt.DisplayRole))
+            self.ui.lineEdit_a_minus.setText(indexes[5].data(QtCore.Qt.DisplayRole))
+            self.ui.lineEdit_r_plus.setText(indexes[6].data(QtCore.Qt.DisplayRole))
+            self.ui.lineEdit_r_minus.setText(indexes[7].data(QtCore.Qt.DisplayRole))
+        except (IndexError, AttributeError):
             pass
 
 
-    def populate_period(self, init=False, start_time="00:00"):
+    def make_period(self, start_time="00:00"):
+        '''
+        Создание итераторов периодов.
+        '''
+        # Преобразование стартового значения для генерации значений периода окончания
+        start_time = int(datetime.timedelta(hours=int(start_time.split(':')[0]), minutes=int(start_time.split(':')[1])).seconds/60)
+        # Формирования начального и конечного значения получасовки
+        start_time_iterator = ((datetime.datetime.min + datetime.timedelta(minutes=i, days=0)).time().strftime('%H:%M') for i in range(start_time, 1441, 30))
+        end_time_iterator = ((datetime.datetime.min + datetime.timedelta(minutes=i, days=0)).time().strftime('%H:%M') for i in range(start_time + 30, 1441, 30))
+        return((start_time_iterator, end_time_iterator))
+
+
+    def populate_period(self, start_time="00:00"):
         '''
         Инициализация combobox'ов с выбором интервалов.
         Генерирует наполнение в зависимости от выбора начального значения.
         Контролирует корректность выбранного периода.
         '''
-        # Выполняется при заданном начальном времени
-        if not init:
-            self.ui.startPeriod_comboBox.setCurrentIndex(self.ui.startPeriod_comboBox.findText(start_time))
-        # Преобразование стартового значения для генерации значений периода окончания
-        start_time = int(datetime.timedelta(hours=int(start_time.split(':')[0]),
-            minutes=int(start_time.split(':')[1])).seconds/60)
-        if not init:
-            # Сдвиг на 30 минут для врмени окончания периода
-            start_time += 30 
-        # Генератор списка периода по получасовкам
-        period_generator = [":".join((h.zfill(2), m)) for h, m in iter(
-                (lambda i: [str(datetime.timedelta(minutes=x))[:-3].split(':') for x in i] )
-                    (i for i in range(start_time, 1411, 30)))]
-        # Список стартовых значений генерируется только при запуске программы
-        if init:
-            #init введена из-за падения Qt при реинициализации startPriod_comboBox (bug)
-            self.ui.startPeriod_comboBox.addItems(period_generator)
+        start, end = self.make_period(start_time)
+        # Стартовые значений заполняются только при запуске программы
+        if (start_time == "00:00"):
+            self.ui.startPeriod_comboBox.addItems(start)
+        # Применяется при выборе периода в treeview
+        self.ui.startPeriod_comboBox.setCurrentIndex(self.ui.startPeriod_comboBox.findText(start_time))
         self.ui.endPeriod_comboBox.clear()
-        self.ui.endPeriod_comboBox.addItems(period_generator)
-        # Всегда должно быть значение конца суток
-        self.ui.endPeriod_comboBox.addItem('00:00')
+        self.ui.endPeriod_comboBox.addItems(end)
 
 
     def populate_comboBox_selected_measuringpoint(self, current_item=0, measuringpoints=0):
@@ -181,7 +180,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
         #     'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
         # self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/Макеты/80020_7841312071_20200205_59409_5100003400.xml"
-        self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/80020_7841312071_20190624_45254_5100000200.xml"
+        self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/664478266.xml"
         if os.path.exists(self.templateXMLfile):
             self.tree = et.parse(self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
@@ -216,40 +215,47 @@ class LEMainWindow(QtWidgets.QMainWindow):
                     if subchild.tag == 'measuringpoint':
                         measuringpoint = QtGui.QStandardItem(subchild.attrib['name'])
                         measuringpoint_list.append(subchild.attrib['name'])
+                        measuringpoint.insertColumn(0, [QtGui.QStandardItem(),])
+                        measuringpoint.insertColumn(1, [QtGui.QStandardItem(i) for i in self.make_period()[0]][:-1])
+                        measuringpoint.insertColumn(2, [QtGui.QStandardItem(i) for i in self.make_period()[1]])
                         self.template_data_model.appendRow(measuringpoint)
                         # Канал
                         # Счетчик колонок для отображения объемов по каналам
-                        column_counter = 3
+                        column_counter = 2
                         for measuringchannel_in in subchild:
                             # Колонка объемов по канала
+                            column_counter += int(measuringchannel_in.attrib['code'])
                             measuringchannel_volume = []
-                            # С каждым проходом добавляем колонку
-                            column_counter += 1
-                            if measuringchannel_in.tag == 'measuringchannel':
-                                # Период, флаг, объем
-                                for period_in in measuringchannel_in:
-                                    # Период (заполняем по первому каналу)
-                                    if period_in.tag == 'period':
-                                        if measuringchannel_in.attrib['code'] == '01':
-                                            period = [QtGui.QStandardItem(),
-                                                QtGui.QStandardItem(period_in.attrib['start']),
-                                                QtGui.QStandardItem(period_in.attrib['end']),]
-                                            # Флаг по первому каналу
-                                            for value_in in period_in:
-                                                try:
-                                                    period.append(QtGui.QStandardItem(value_in.attrib['status']),)
-                                                    non_profit_measuringpoints_list.append(measuringpoint.text())
-                                                    # Окрашиваем ячейки с некоммерческой информацией
-                                                    [i.setBackground(QtGui.QColor('#F15A24')) for i in [measuringpoint,] + period]
-                                                except KeyError:
-                                                    period.append(QtGui.QStandardItem('0'),)
-                                                # Объем по первому каналу
-                                                period.append(QtGui.QStandardItem(value_in.text),)
-                                                measuringpoint.appendRow(period)
-                                        # Объемы по остальным каналам
-                                        for value_in in period_in:
-                                            measuringchannel_volume.append(QtGui.QStandardItem(value_in.text))
-                            measuringpoint.insertColumn(column_counter, measuringchannel_volume)
+                            # Период, флаг, объем
+                            for period_in in measuringchannel_in:
+                                print(measuringpoint.columnCount())
+                                # print(measuringpoint.child(measuringpoint.row(), 1).data(QtCore.Qt.DisplayRole))
+                                # print(measuringpoint.takeColumn(1))
+
+                            #     measuringchannel_volume.append(QtGui.QStandardItem(period_in.attrib['start']))
+                            # measuringpoint.insertColumn(column_counter, measuringchannel_volume)    
+                        #             # Период (заполняем по первому каналу)
+                        #             if period_in.tag == 'period':
+                        #                 if measuringchannel_in.attrib['code'] == '01':
+                        #                     period = [QtGui.QStandardItem(),
+                        #                         QtGui.QStandardItem(period_in.attrib['start']),
+                        #                         QtGui.QStandardItem(period_in.attrib['end']),]
+                        #                     # Флаг по первому каналу
+                        #                     for value_in in period_in:
+                        #                         try:
+                        #                             period.append(QtGui.QStandardItem(value_in.attrib['status']),)
+                        #                             non_profit_measuringpoints_list.append(measuringpoint.text())
+                        #                             # Окрашиваем ячейки с некоммерческой информацией
+                        #                             [i.setBackground(QtGui.QColor('#F15A24')) for i in [measuringpoint,] + period]
+                        #                         except KeyError:
+                        #                             period.append(QtGui.QStandardItem('0'),)
+                        #                         # Объем по первому каналу
+                        #                         period.append(QtGui.QStandardItem(value_in.text),)
+                        #                         measuringpoint.appendRow(period)
+                        #                 # Объемы по остальным каналам
+                        #                 for value_in in period_in:
+                        #                     measuringchannel_volume.append(QtGui.QStandardItem(value_in.text))
+                            # measuringpoint.insertColumn(column_counter, measuringchannel_volume)
         # Заполнение combobox'а присоединениями из текущего макета 
         self.populate_comboBox_selected_measuringpoint(measuringpoints=measuringpoint_list)
         # Удаление лишнего из списка некоммерческих присоединений
@@ -284,6 +290,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
 
     def adjustment_volume(self, measuringpoint, measuringchannels_value, start, end):
         '''
+        Правка значений на вкладке объем.
         '''
         root = self.tree.getroot()
         for child in root.iterfind('.//'):
@@ -291,9 +298,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 print(child.attrib['name'])
                 # for i in measuringchannels_value:
                 #     print([measuringchannel for measuringchannel in child if measuringchannel.attrib['code'] == i])
-
-
-
 
 
     def clicked_pushbutton_apply(self):
@@ -315,7 +319,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 for child in root.iterfind('.//'):
                     if (child.tag == 'measuringpoint') and (child.attrib['name'] == self.ui.comboBox_selected_measuringpoint.currentText()):
                         for measuringchannel in child:
-                            measuringchannel = self.change_status(measuringchannel, start, end, flag)
+                            measuringchannel = self.change_status(measuringcchannel, start, end, flag)
             # Для всех некоммерческих значений
             elif self.ui.comboBox_measuringpoint_type.currentIndex() == 1:
                 for measuringpoint_in in self.non_profit_measuringpoints:
