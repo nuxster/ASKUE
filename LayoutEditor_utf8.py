@@ -83,6 +83,12 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.label_a_minus.setText('Активная отдача (A-)')
         self.ui.label_r_plus.setText('Реактивная приём (R+)')
         self.ui.label_r_minus.setText('Реактивная отдача (R-)')
+        # Валидация полей
+        input_validator = QtGui.QRegExpValidator(QtCore.QRegExp('^\d\d{0,5}$'))
+        self.ui.lineEdit_a_plus.setValidator(input_validator)
+        self.ui.lineEdit_a_minus.setValidator(input_validator)
+        self.ui.lineEdit_r_plus.setValidator(input_validator)
+        self.ui.lineEdit_r_minus.setValidator(input_validator)
         # Кнопка применить
         self.ui.pushButton_apply.setText('Применить')
         # По умолчанию кнопка не активна
@@ -131,7 +137,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
             pass
 
 
-    def make_period(self, start_time="00:00"):
+    def make_period(self, start_time='0:00'):
         '''
         Создание итераторов периодов.
         '''
@@ -143,7 +149,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         return((start_time_iterator, end_time_iterator))
 
 
-    def populate_period(self, start_time="00:00"):
+    def populate_period(self, start_time='00:00'):
         '''
         Инициализация combobox'ов с выбором интервалов.
         Генерирует наполнение в зависимости от выбора начального значения.
@@ -151,7 +157,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         start, end = self.make_period(start_time)
         # Стартовые значений заполняются только при запуске программы
-        if (start_time == "00:00"):
+        if (start_time == '00:00'):
             self.ui.startPeriod_comboBox.addItems(start)
         # Применяется при выборе периода в treeview
         self.ui.startPeriod_comboBox.setCurrentIndex(self.ui.startPeriod_comboBox.findText(start_time))
@@ -179,13 +185,13 @@ class LEMainWindow(QtWidgets.QMainWindow):
             self.template_data_model.clear()
         # self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
         #     'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
-        # self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/Макеты/80020_7841312071_20200205_59409_5100003400.xml"
-        self.templateXMLfile = "/home/nuxster/Files/git/ASKUE/664478266.xml"
+        # self.templateXMLfile = '/home/nuxster/Files/git/ASKUE/Макеты/80020_7841312071_20200205_59409_5100003400.xml'
+        self.templateXMLfile = '/home/nuxster/Files/git/ASKUE/664478266.xml'
         if os.path.exists(self.templateXMLfile):
             self.tree = et.parse(self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
             # Имя файла-шаблона в сообщении строки состояния
-            self.ui.statusbar.showMessage(f"Макет: {self.templateXMLfile.split(os.sep)[-1:][0]}")
+            self.ui.statusbar.showMessage(f'Макет: {self.templateXMLfile.split(os.sep)[-1:][0]}')
 
 
     def save_xml(self):
@@ -196,7 +202,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         try:
             self.tree.write(savefile, encoding='windows-1251')
         except Exception as exception_event:
-            self.message("Ошибка записи макета: {0}".format(exception_event))
+            self.message('Ошибка записи макета: {0}'.format(exception_event))
 
 
     def xml_to_treeview(self, root):
@@ -215,47 +221,35 @@ class LEMainWindow(QtWidgets.QMainWindow):
                     if subchild.tag == 'measuringpoint':
                         measuringpoint = QtGui.QStandardItem(subchild.attrib['name'])
                         measuringpoint_list.append(subchild.attrib['name'])
-                        measuringpoint.insertColumn(0, [QtGui.QStandardItem(),])
+                        measuringpoint.insertColumn(0, [QtGui.QStandardItem(''),])
                         measuringpoint.insertColumn(1, [QtGui.QStandardItem(i) for i in self.make_period()[0]][:-1])
                         measuringpoint.insertColumn(2, [QtGui.QStandardItem(i) for i in self.make_period()[1]])
+                        [measuringpoint.insertColumn(i, [QtGui.QStandardItem('-') for i in range(49)]) for i in range(3, 8)]
                         self.template_data_model.appendRow(measuringpoint)
                         # Канал
-                        # Счетчик колонок для отображения объемов по каналам
-                        column_counter = 2
                         for measuringchannel_in in subchild:
-                            # Колонка объемов по канала
-                            column_counter += int(measuringchannel_in.attrib['code'])
+                            # Списки для формирования колонок
+                            flag = []
                             measuringchannel_volume = []
                             # Период, флаг, объем
                             for period_in in measuringchannel_in:
-                                print(measuringpoint.columnCount())
-                                # print(measuringpoint.child(measuringpoint.row(), 1).data(QtCore.Qt.DisplayRole))
-                                # print(measuringpoint.takeColumn(1))
+                                for value_in in period_in:
+                                    # Флаги
+                                    try:
+                                        _flag = QtGui.QStandardItem(QtGui.QStandardItem(value_in.attrib['status']))
+                                        _flag.setBackground(QtGui.QColor('#F15A24'))
+                                        flag.append(_flag)
+                                        [i.setBackground(QtGui.QColor('#F15A24')) for i in [measuringpoint,]]
+                                        non_profit_measuringpoints_list.append(measuringpoint.text())
+                                    except KeyError:
+                                        flag.append(QtGui.QStandardItem('0'))
+                                    # Объемы
+                                    measuringchannel_volume.append(QtGui.QStandardItem(value_in.text))
+                            measuringpoint.removeColumn(3 + int(measuringchannel_in.attrib['code']))
+                            measuringpoint.insertColumn(3 + int(measuringchannel_in.attrib['code']), measuringchannel_volume)
+                        measuringpoint.removeColumn(3)
+                        measuringpoint.insertColumn(3, flag)
 
-                            #     measuringchannel_volume.append(QtGui.QStandardItem(period_in.attrib['start']))
-                            # measuringpoint.insertColumn(column_counter, measuringchannel_volume)    
-                        #             # Период (заполняем по первому каналу)
-                        #             if period_in.tag == 'period':
-                        #                 if measuringchannel_in.attrib['code'] == '01':
-                        #                     period = [QtGui.QStandardItem(),
-                        #                         QtGui.QStandardItem(period_in.attrib['start']),
-                        #                         QtGui.QStandardItem(period_in.attrib['end']),]
-                        #                     # Флаг по первому каналу
-                        #                     for value_in in period_in:
-                        #                         try:
-                        #                             period.append(QtGui.QStandardItem(value_in.attrib['status']),)
-                        #                             non_profit_measuringpoints_list.append(measuringpoint.text())
-                        #                             # Окрашиваем ячейки с некоммерческой информацией
-                        #                             [i.setBackground(QtGui.QColor('#F15A24')) for i in [measuringpoint,] + period]
-                        #                         except KeyError:
-                        #                             period.append(QtGui.QStandardItem('0'),)
-                        #                         # Объем по первому каналу
-                        #                         period.append(QtGui.QStandardItem(value_in.text),)
-                        #                         measuringpoint.appendRow(period)
-                        #                 # Объемы по остальным каналам
-                        #                 for value_in in period_in:
-                        #                     measuringchannel_volume.append(QtGui.QStandardItem(value_in.text))
-                            # measuringpoint.insertColumn(column_counter, measuringchannel_volume)
         # Заполнение combobox'а присоединениями из текущего макета 
         self.populate_comboBox_selected_measuringpoint(measuringpoints=measuringpoint_list)
         # Удаление лишнего из списка некоммерческих присоединений
@@ -264,7 +258,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.save_xml_action.setEnabled(True)
         # Активировать кнопку 'Применить'
         self.ui.pushButton_apply.setEnabled(True)
-
+        
 
     def change_status(self, measuringchannel, start, end, flag):
         '''
@@ -283,7 +277,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
                         except KeyError:
                             pass
                     else:
-                        value.set('status', "1")
+                        value.set('status', '1')
             if period.attrib['end'] == end:
                 return measuringchannel
 
@@ -293,11 +287,23 @@ class LEMainWindow(QtWidgets.QMainWindow):
         Правка значений на вкладке объем.
         '''
         root = self.tree.getroot()
-        for child in root.iterfind('.//'):
-            if (child.tag == 'measuringpoint') and (child.attrib['name'] == measuringpoint):
-                print(child.attrib['name'])
-                # for i in measuringchannels_value:
-                #     print([measuringchannel for measuringchannel in child if measuringchannel.attrib['code'] == i])
+        for measuringpoint_in in root.iterfind('.//'):
+            # Конкретная точка учета
+            if (measuringpoint_in.tag == 'measuringpoint') and (measuringpoint_in.attrib['name'] == measuringpoint):
+                for measuringchannels_in in measuringpoint_in:
+                    # Только выбранные каналы
+                    if (measuringchannels_in.attrib['code'] in measuringchannels_value.keys()) and (measuringchannels_value[measuringchannels_in.attrib['code']][1]):
+                        # Указанный период
+                        processing_interval = False
+                        for period in measuringchannels_in:
+                            if (period.attrib['start'] == start):
+                                processing_interval = True
+                            # Обработка временного интервала
+                            if processing_interval:
+                                for value in period:
+                                    value.text = measuringchannels_value[measuringchannels_in.attrib['code']][0]
+                            if period.attrib['end'] == end:
+                                processing_interval = False
 
 
     def clicked_pushbutton_apply(self):
@@ -305,10 +311,10 @@ class LEMainWindow(QtWidgets.QMainWindow):
         Действия по нажатию кнопки "Применить".
         '''
         if self.template_data_model.rowCount() < 1:
-            self.send_message("Требуется загрузить макет.")
+            self.send_message('Требуется загрузить макет.')
             return()
-        start = "".join(self.ui.startPeriod_comboBox.currentText().split(':'))
-        end = "".join(self.ui.endPeriod_comboBox.currentText().split(':'))
+        start = ''.join(self.ui.startPeriod_comboBox.currentText().split(':'))
+        end = ''.join(self.ui.endPeriod_comboBox.currentText().split(':'))
         flag = int(self.ui.comboBox_select_flag.currentText())
         measuringpoint = self.ui.comboBox_selected_measuringpoint.currentText()
         root = self.tree.getroot()
@@ -319,11 +325,11 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 for child in root.iterfind('.//'):
                     if (child.tag == 'measuringpoint') and (child.attrib['name'] == self.ui.comboBox_selected_measuringpoint.currentText()):
                         for measuringchannel in child:
-                            measuringchannel = self.change_status(measuringcchannel, start, end, flag)
+                            measuringchannel = self.change_status(measuringchannel, start, end, flag)
             # Для всех некоммерческих значений
             elif self.ui.comboBox_measuringpoint_type.currentIndex() == 1:
                 for measuringpoint_in in self.non_profit_measuringpoints:
-                    for measuringpoint in root.findall("./area/measuringpoint"):
+                    for measuringpoint in root.findall('./area/measuringpoint'):
                         if measuringpoint.attrib['name'] == measuringpoint_in:
                             for measuringchannel in measuringpoint:
                                 measuringchannel = self.change_status(measuringchannel, start, end, flag)
@@ -336,10 +342,10 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # Действия для вкладки "Объем"
         elif self.ui.tabWidget.currentIndex() == 1:
             measuringchannels_value = {
-                "01":(self.ui.lineEdit_a_plus.text(), self.ui.checkBox_save_a_plus.isChecked()),
-                "02":(self.ui.lineEdit_a_minus.text(), self.ui.checkBox_save_a_minus.isChecked()),
-                "03":(self.ui.lineEdit_r_plus.text(), self.ui.checkBox_save_r_plus.isChecked()),
-                "04":(self.ui.lineEdit_r_minus.text(), self.ui.checkBox_save_r_minus.isChecked())
+                '01':(self.ui.lineEdit_a_plus.text(), self.ui.checkBox_save_a_plus.isChecked()),
+                '02':(self.ui.lineEdit_a_minus.text(), self.ui.checkBox_save_a_minus.isChecked()),
+                '03':(self.ui.lineEdit_r_plus.text(), self.ui.checkBox_save_r_plus.isChecked()),
+                '04':(self.ui.lineEdit_r_minus.text(), self.ui.checkBox_save_r_minus.isChecked())
             }
             self.adjustment_volume(measuringpoint, measuringchannels_value, start, end)
         
@@ -353,9 +359,9 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         massage_box = QtWidgets.QMessageBox()
         if save == 1:
-            btn = massage_box.question(self, "Сообщение", msg, QtWidgets.QMessageBox.Yes|QtWidgets.QMessageBox.No)
+            btn = massage_box.question(self, 'Сообщение', msg, QtWidgets.QMessageBox.Yes|QtWidgets.QMessageBox.No)
         else:
-            btn = massage_box.question(self, "Сообщение", msg, QtWidgets.QMessageBox.Ok)
+            btn = massage_box.question(self, 'Сообщение', msg, QtWidgets.QMessageBox.Ok)
         if btn == QtWidgets.QMessageBox.Yes:
             self.save_xml()
         else:
