@@ -51,6 +51,8 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_2), 'Объём')
         # Общая область
         self.ui.label_selected_measuringpoint.setText('Присоединение')
+        # Комбобокс с присоединениями
+        self.ui.comboBox_selected_measuringpoint.setStyleSheet('combobox-popup: 0;')
         # Комбобоксы выбора интервала
         self.ui.startTime_label.setText('Начало:')
         self.ui.startPeriod_comboBox.setStyleSheet('combobox-popup: 0;')
@@ -94,7 +96,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # По умолчанию кнопка не активна
         self.ui.pushButton_apply.setEnabled(False)
         self.ui.pushButton_apply.clicked.connect(self.clicked_pushbutton_apply)
-        self.open_xml()
 
 
     def init_menu(self):
@@ -183,10 +184,10 @@ class LEMainWindow(QtWidgets.QMainWindow):
         if self.template_data_model.rowCount() > 0:
             self.send_message('Сохрани макет', 1)
             self.template_data_model.clear()
-        # self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
-        #     'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
+        self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
+            'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
         # self.templateXMLfile = '/home/nuxster/Files/git/ASKUE/Макеты/80020_7841312071_20200205_59409_5100003400.xml'
-        self.templateXMLfile = '/home/nuxster/Files/git/ASKUE/664478266.xml'
+        # self.templateXMLfile = '/home/nuxster/Files/git/ASKUE/664478266.xml'
         if os.path.exists(self.templateXMLfile):
             self.tree = et.parse(self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
@@ -238,22 +239,27 @@ class LEMainWindow(QtWidgets.QMainWindow):
                                     try:
                                         _flag = QtGui.QStandardItem(QtGui.QStandardItem(value_in.attrib['status']))
                                         _flag.setBackground(QtGui.QColor('#F15A24'))
+                                        # _flag.setTextAlignment(QtCore.Qt.AlignCenter)
                                         flag.append(_flag)
-                                        [i.setBackground(QtGui.QColor('#F15A24')) for i in [measuringpoint,]]
+                                        measuringpoint.setBackground(QtGui.QColor('#F15A24'))
                                         non_profit_measuringpoints_list.append(measuringpoint.text())
                                     except KeyError:
-                                        flag.append(QtGui.QStandardItem('0'))
+                                        _flag = QtGui.QStandardItem('0')
+                                        # _flag.setTextAlignment(QtCore.Qt.AlignCenter)
+                                        flag.append(_flag)
                                     # Объемы
                                     measuringchannel_volume.append(QtGui.QStandardItem(value_in.text))
                             measuringpoint.removeColumn(3 + int(measuringchannel_in.attrib['code']))
                             measuringpoint.insertColumn(3 + int(measuringchannel_in.attrib['code']), measuringchannel_volume)
                         measuringpoint.removeColumn(3)
                         measuringpoint.insertColumn(3, flag)
-
+    
         # Заполнение combobox'а присоединениями из текущего макета 
         self.populate_comboBox_selected_measuringpoint(measuringpoints=measuringpoint_list)
         # Удаление лишнего из списка некоммерческих присоединений
         self.non_profit_measuringpoints = set(non_profit_measuringpoints_list)
+        # Изменение размера столбца с присоединениями по содержимому
+        self.ui.templateDataTree.resizeColumnToContents(0)
         # Активировать пункт меню сохраняющий макет
         self.save_xml_action.setEnabled(True)
         # Активировать кнопку 'Применить'
