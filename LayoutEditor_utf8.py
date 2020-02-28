@@ -123,6 +123,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         Действия при выборе строки в treeview.
         '''
+        self.ui.comboBox_measuringpoint_type.setCurrentIndex(0)
         indexes = self.ui.templateDataTree.selectedIndexes()
         measuringpoint = indexes[0].parent().data(QtCore.Qt.DisplayRole) or indexes[0].data(QtCore.Qt.DisplayRole)
         self.populate_comboBox_selected_measuringpoint(current_item=measuringpoint)
@@ -266,7 +267,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.pushButton_apply.setEnabled(True)
         
 
-    def change_status(self, measuringchannel, start, end, flag):
+    def change_status(self, measuringchannel, flag, start = "0000", end = "0000"):
         '''
         Функция меняет флаг в указанном интервале для каждого измерительного канала.
         '''
@@ -331,20 +332,20 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 for child in root.iterfind('.//'):
                     if (child.tag == 'measuringpoint') and (child.attrib['name'] == self.ui.comboBox_selected_measuringpoint.currentText()):
                         for measuringchannel in child:
-                            measuringchannel = self.change_status(measuringchannel, start, end, flag)
+                            self.change_status(measuringchannel, flag, start, end)
             # Для всех некоммерческих значений
             elif self.ui.comboBox_measuringpoint_type.currentIndex() == 1:
                 for measuringpoint_in in self.non_profit_measuringpoints:
                     for measuringpoint in root.findall('./area/measuringpoint'):
                         if measuringpoint.attrib['name'] == measuringpoint_in:
                             for measuringchannel in measuringpoint:
-                                measuringchannel = self.change_status(measuringchannel, start, end, flag)
+                                self.change_status(measuringchannel, flag)
             # Для всего шаблона
             elif self.ui.comboBox_measuringpoint_type.currentIndex() == 2:
                 for child in root.iterfind('.//'):
                     if (child.tag == 'measuringpoint'):
                         for measuringchannel in child:
-                            measuringchannel = self.change_status(measuringchannel, start, end, flag)
+                            self.change_status(measuringchannel, flag)
         # Действия для вкладки "Объем"
         elif self.ui.tabWidget.currentIndex() == 1:
             measuringchannels_value = {
@@ -354,9 +355,11 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 '04':(self.ui.lineEdit_r_minus.text(), self.ui.checkBox_save_r_minus.isChecked())
             }
             self.adjustment_volume(measuringpoint, measuringchannels_value, start, end)
-        
+
         # Перезагрузить treeview
         self.xml_to_treeview(root)
+        
+
 
 
     def send_message(self, msg, save=0):
