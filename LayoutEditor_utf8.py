@@ -121,6 +121,12 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.exit_action.triggered.connect(QtWidgets.qApp.quit)
         filemenu.addAction(self.exit_action)
 
+        about = self.ui.menubar.addMenu('?')
+        self.about_action = QtWidgets.QAction('О программе', self)
+        self.about_action.triggered.connect(lambda: QtWidgets.QMessageBox.about(self, "О программе", "<h4 align=center>Программа для правки макета 80020<br><a href='https://github.com/nuxster/ASKUE'>Сайт программы</a></h4>"))
+        about.addAction(self.about_action)
+
+
 
     def treeview_select_row(self):
         '''
