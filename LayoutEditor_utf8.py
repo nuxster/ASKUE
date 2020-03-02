@@ -36,6 +36,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.init_menu()
         # treeView
         self.template_data_model = QtGui.QStandardItemModel()
+        self.template_data_model_reference = QtGui.QStandardItemModel()
         # self.template_data_model.setColumnCount(9)
         self.header_labels = ['Точка учета', 'Начало', 'Окончание', 'Статус', 'A+', 'A-', 'R+', 'R-']
         self.template_data_model.setHorizontalHeaderLabels(self.header_labels)
@@ -96,6 +97,8 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # По умолчанию кнопка не активна
         self.ui.pushButton_apply.setEnabled(False)
         self.ui.pushButton_apply.clicked.connect(self.clicked_pushbutton_apply)
+        #
+        # self.open_xml()
 
 
     def init_menu(self):
@@ -192,6 +195,15 @@ class LEMainWindow(QtWidgets.QMainWindow):
         if os.path.exists(self.templateXMLfile):
             self.tree = et.parse(self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
+            # Сохранение эталонной модели для отображения изменений
+            for i in range(self.template_data_model.rowCount()):
+                measurepoint = QtGui.QStandardItem(self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole))
+                self.template_data_model_reference.appendRow(measurepoint)
+                for row in range(48):
+                    _row = []
+                    for column in range(8):
+                        _row.append(QtGui.QStandardItem(self.template_data_model.index(row, column, self.template_data_model.index(i, 0)).data(QtCore.Qt.DisplayRole)))
+                    measurepoint.appendRow(_row)
             # Имя файла-шаблона в сообщении строки состояния
             self.ui.statusbar.showMessage(f'Макет: {self.templateXMLfile.split(os.sep)[-1:][0]}')
 
@@ -239,10 +251,10 @@ class LEMainWindow(QtWidgets.QMainWindow):
                                     # Флаги
                                     try:
                                         _flag = QtGui.QStandardItem(QtGui.QStandardItem(value_in.attrib['status']))
-                                        _flag.setBackground(QtGui.QColor('#F15A24'))
+                                        _flag.setBackground(QtGui.QColor('#F4AA90'))
                                         # _flag.setTextAlignment(QtCore.Qt.AlignCenter)
                                         flag.append(_flag)
-                                        measuringpoint.setBackground(QtGui.QColor('#F15A24'))
+                                        measuringpoint.setBackground(QtGui.QColor('#F4AA90'))
                                         non_profit_measuringpoints_list.append(measuringpoint.text())
                                     except KeyError:
                                         _flag = QtGui.QStandardItem('0')
@@ -254,7 +266,14 @@ class LEMainWindow(QtWidgets.QMainWindow):
                             measuringpoint.insertColumn(3 + int(measuringchannel_in.attrib['code']), measuringchannel_volume)
                         measuringpoint.removeColumn(3)
                         measuringpoint.insertColumn(3, flag)
-    
+        # Выделение отличий от эталонной модели
+        for i in range(self.template_data_model_reference.rowCount()):
+            for row in range(48):
+                for column in range(1, 8):
+                    if not (self.template_data_model_reference.index(row, column, self.template_data_model_reference.index(i, 0)).data(QtCore.Qt.DisplayRole) ==
+                        self.template_data_model.index(row, column, self.template_data_model.index(i, 0)).data(QtCore.Qt.DisplayRole)):
+                        self.template_data_model.itemFromIndex(self.template_data_model.index(i, 0)).setBackground(QtGui.QColor('#BB94A9'))
+                        self.template_data_model.itemFromIndex(self.template_data_model.index(row, column, self.template_data_model.index(i, 0))).setBackground(QtGui.QColor('#BB94A9'))
         # Заполнение combobox'а присоединениями из текущего макета 
         self.populate_comboBox_selected_measuringpoint(measuringpoints=measuringpoint_list)
         # Удаление лишнего из списка некоммерческих присоединений
@@ -358,8 +377,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
 
         # Перезагрузить treeview
         self.xml_to_treeview(root)
-        
-
 
 
     def send_message(self, msg, save=0):
