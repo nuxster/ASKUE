@@ -97,8 +97,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # По умолчанию кнопка не активна
         self.ui.pushButton_apply.setEnabled(False)
         self.ui.pushButton_apply.clicked.connect(self.clicked_pushbutton_apply)
-        #
-        # self.open_xml()
 
 
     def init_menu(self):
@@ -196,8 +194,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
             self.template_data_model.clear()
         self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
             'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
-        # self.templateXMLfile = '/home/nuxster/Files/git/ASKUE/Макеты/80020_7841312071_20200205_59409_5100003400.xml'
-        # self.templateXMLfile = '/home/nuxster/Files/git/ASKUE/664478266.xml'
         if os.path.exists(self.templateXMLfile):
             self.tree = et.parse(self.templateXMLfile)
             self.xml_to_treeview(self.tree.getroot())
@@ -258,13 +254,11 @@ class LEMainWindow(QtWidgets.QMainWindow):
                                     try:
                                         _flag = QtGui.QStandardItem(QtGui.QStandardItem(value_in.attrib['status']))
                                         _flag.setBackground(QtGui.QColor('#F4AA90'))
-                                        # _flag.setTextAlignment(QtCore.Qt.AlignCenter)
                                         flag.append(_flag)
                                         measuringpoint.setBackground(QtGui.QColor('#F4AA90'))
                                         non_profit_measuringpoints_list.append(measuringpoint.text())
                                     except KeyError:
                                         _flag = QtGui.QStandardItem('0')
-                                        # _flag.setTextAlignment(QtCore.Qt.AlignCenter)
                                         flag.append(_flag)
                                     # Объемы
                                     measuringchannel_volume.append(QtGui.QStandardItem(value_in.text))
@@ -380,7 +374,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 '04':(self.ui.lineEdit_r_minus.text(), self.ui.checkBox_save_r_minus.isChecked())
             }
             self.adjustment_volume(measuringpoint, measuringchannels_value, start, end)
-
         # Перезагрузить treeview
         self.xml_to_treeview(root)
 
