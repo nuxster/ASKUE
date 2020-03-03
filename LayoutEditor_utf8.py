@@ -196,7 +196,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
             'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
         if os.path.exists(self.templateXMLfile):
             self.tree = et.parse(self.templateXMLfile)
-            self.xml_to_treeview(self.tree.getroot())
+            self.xml_to_treeview()
             # Сохранение эталонной модели для отображения изменений
             for i in range(self.template_data_model.rowCount()):
                 measurepoint = QtGui.QStandardItem(self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole))
@@ -221,7 +221,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
             self.message('Ошибка записи макета: {0}'.format(exception_event))
 
 
-    def xml_to_treeview(self, root):
+    def xml_to_treeview(self):
         '''
         Заполнение модели данных для treeview
         '''
@@ -230,7 +230,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # Временный список для некоммерческих присоединений
         non_profit_measuringpoints_list = []
         measuringpoint_list = []
-        for child in root.iterfind('.//'):
+        for child in self.tree.getroot().iterfind('.//'):
             if child.tag == 'area':
                 for subchild in child:
                     # Точка учета
@@ -286,34 +286,50 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.pushButton_apply.setEnabled(True)
         
 
-    def change_status(self, measuringchannel, flag, start = "0000", end = "0000"):
+    def change_status(self, measuringpoint, flag, start = "0000", end = "0000"):
         '''
         Функция меняет флаг в указанном интервале для каждого измерительного канала.
         '''
         processing_interval = False
-        for period in measuringchannel:
-            if (period.attrib['start'] == start):
-                processing_interval = True
-            # Обработка временного интервала
-            if processing_interval:
-                for value in period:
-                    if flag == 0:
-                        try:
-                            del value.attrib['status']
-                        except KeyError:
-                            pass
-                    else:
-                        value.set('status', '1')
-            if period.attrib['end'] == end:
-                return measuringchannel
+        for i in range(self.template_data_model.rowCount()):
+            if measuringpoint == self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole):
+                for row in range(48):
+                    # Начало временного интеравала
+                    if ':'.join((start[:-2],start[-2:])) == self.template_data_model.index(row, 1, self.template_data_model.index(i, 0)).data(QtCore.Qt.DisplayRole):
+                        processing_interval = True
+                    # Обработка временного интервала
+                    if processing_interval:
+                        # Меняем значение флага
+                        self.template_data_model.setData(self.template_data_model.index(row, 3, self.template_data_model.index(i, 0)), flag)
+                        # Вызываем сигнал dataChanged для обновления значений в treeView
+                        self.template_data_model.dataChanged.emit(self.template_data_model.index(row, 3, self.template_data_model.index(i, 0)), 
+                            self.template_data_model.index(row, 3, self.template_data_model.index(i, 0)), ())
+                    # Окончание временного интервала
+                    if ':'.join((end[:-2],end[-2:])) == self.template_data_model.index(row, 2, self.template_data_model.index(i, 0)).data(QtCore.Qt.DisplayRole):
+                        return measuringpoint
+        # processing_interval = False
+        # for period in measuringchannel:
+        #     if (period.attrib['start'] == start):
+        #         processing_interval = True
+        #     # Обработка временного интервала
+        #     if processing_interval:
+        #         for value in period:
+        #             if flag == 0:
+        #                 try:
+        #                     del value.attrib['status']
+        #                 except KeyError:
+        #                     pass
+        #             else:
+        #                 value.set('status', '1')
+        #     if period.attrib['end'] == end:
+        #         return measuringchannel
 
 
     def adjustment_volume(self, measuringpoint, measuringchannels_value, start, end):
         '''
         Правка значений на вкладке объем.
         '''
-        root = self.tree.getroot()
-        for measuringpoint_in in root.iterfind('.//'):
+        for measuringpoint_in in self.tree.getroot().iterfind('.//'):
             # Конкретная точка учета
             if (measuringpoint_in.tag == 'measuringpoint') and (measuringpoint_in.attrib['name'] == measuringpoint):
                 for measuringchannels_in in measuringpoint_in:
@@ -343,25 +359,31 @@ class LEMainWindow(QtWidgets.QMainWindow):
         end = ''.join(self.ui.endPeriod_comboBox.currentText().split(':'))
         flag = int(self.ui.comboBox_select_flag.currentText())
         measuringpoint = self.ui.comboBox_selected_measuringpoint.currentText()
-        root = self.tree.getroot()
+        # root = self.tree.getroot()
         # Действия для вкладки "Статус"
         if self.ui.tabWidget.currentIndex() == 0:
             # Если присоединение было выбрано вручную 
             if self.ui.comboBox_measuringpoint_type.currentIndex() == 0:
-                for child in root.iterfind('.//'):
-                    if (child.tag == 'measuringpoint') and (child.attrib['name'] == self.ui.comboBox_selected_measuringpoint.currentText()):
-                        for measuringchannel in child:
-                            self.change_status(measuringchannel, flag, start, end)
+                # for child in self.tree.getroot().iterfind('.//'):
+                #     if (child.tag == 'measuringpoint') and (child.attrib['name'] == self.ui.comboBox_selected_measuringpoint.currentText()):
+                #         for measuringchannel in child:
+                #             self.change_status(measuringchannel, flag, start, end)
+
+                # for i in range(self.template_data_model.rowCount()):
+                #     if measuringpoint == self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole):
+                #         print(self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole))
+                self.change_status(measuringpoint, flag, start, end)
+
             # Для всех некоммерческих значений
             elif self.ui.comboBox_measuringpoint_type.currentIndex() == 1:
                 for measuringpoint_in in self.non_profit_measuringpoints:
-                    for measuringpoint in root.findall('./area/measuringpoint'):
+                    for measuringpoint in self.tree.getroot().findall('./area/measuringpoint'):
                         if measuringpoint.attrib['name'] == measuringpoint_in:
                             for measuringchannel in measuringpoint:
                                 self.change_status(measuringchannel, flag)
             # Для всего шаблона
             elif self.ui.comboBox_measuringpoint_type.currentIndex() == 2:
-                for child in root.iterfind('.//'):
+                for child in self.tree.getroot().iterfind('.//'):
                     if (child.tag == 'measuringpoint'):
                         for measuringchannel in child:
                             self.change_status(measuringchannel, flag)
@@ -374,8 +396,9 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 '04':(self.ui.lineEdit_r_minus.text(), self.ui.checkBox_save_r_minus.isChecked())
             }
             self.adjustment_volume(measuringpoint, measuringchannels_value, start, end)
+            # self.template_data_model.dataChanged()
         # Перезагрузить treeview
-        self.xml_to_treeview(root)
+        # self.xml_to_treeview()
 
 
     def send_message(self, msg, save=0):
