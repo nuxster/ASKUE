@@ -62,7 +62,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # Вкладка 'Статус'
         # Выбор типа присоединения
         self.ui.measuringpointType_label.setText('Присоединения:')
-        self.ui.comboBox_measuringpoint_type.addItems(('', 'Все некоммерч.', 'Все'))
+        self.ui.comboBox_measuringpoint_type.addItems(('', 'Все'))
         # Инициализация интервалов
         self.populate_period()
         # Реинициализация времемени окончания после выбора времени начала
@@ -210,6 +210,20 @@ class LEMainWindow(QtWidgets.QMainWindow):
             self.ui.statusbar.showMessage(f'Макет: {self.templateXMLfile.split(os.sep)[-1:][0]}')
 
 
+    def highlight_changes(self):
+        '''
+        Процедура подсвечивает измененные (отличные от эталонной модели) 
+        данные в TreeView
+        '''
+        for i in range(self.template_data_model_reference.rowCount()):
+            for row in range(48):
+                for column in range(1, 8):
+                    if not (self.template_data_model_reference.index(row, column, self.template_data_model_reference.index(i, 0)).data(QtCore.Qt.DisplayRole) ==
+                        self.template_data_model.index(row, column, self.template_data_model.index(i, 0)).data(QtCore.Qt.DisplayRole)):
+                        self.template_data_model.itemFromIndex(self.template_data_model.index(i, 0)).setBackground(QtGui.QColor('#BB94A9'))
+                        self.template_data_model.itemFromIndex(self.template_data_model.index(row, column, self.template_data_model.index(i, 0))).setBackground(QtGui.QColor('#BB94A9'))
+
+
     def save_xml(self):
         '''
         Сохранение исправленного шаблона.
@@ -266,14 +280,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
                             measuringpoint.insertColumn(3 + int(measuringchannel_in.attrib['code']), measuringchannel_volume)
                         measuringpoint.removeColumn(3)
                         measuringpoint.insertColumn(3, flag)
-        # Выделение отличий от эталонной модели
-        for i in range(self.template_data_model_reference.rowCount()):
-            for row in range(48):
-                for column in range(1, 8):
-                    if not (self.template_data_model_reference.index(row, column, self.template_data_model_reference.index(i, 0)).data(QtCore.Qt.DisplayRole) ==
-                        self.template_data_model.index(row, column, self.template_data_model.index(i, 0)).data(QtCore.Qt.DisplayRole)):
-                        self.template_data_model.itemFromIndex(self.template_data_model.index(i, 0)).setBackground(QtGui.QColor('#BB94A9'))
-                        self.template_data_model.itemFromIndex(self.template_data_model.index(row, column, self.template_data_model.index(i, 0))).setBackground(QtGui.QColor('#BB94A9'))
         # Заполнение combobox'а присоединениями из текущего макета 
         self.populate_comboBox_selected_measuringpoint(measuringpoints=measuringpoint_list)
         # Удаление лишнего из списка некоммерческих присоединений
@@ -284,14 +290,21 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.save_xml_action.setEnabled(True)
         # Активировать кнопку 'Применить'
         self.ui.pushButton_apply.setEnabled(True)
-        
 
-    def change_status(self, measuringpoint, flag, start = "0000", end = "0000"):
+    
+    def change_status(self, measuringpoint, flag, start = '0000', end = '0000'):
         '''
         Функция меняет флаг в указанном интервале для каждого измерительного канала.
         '''
         processing_interval = False
         for i in range(self.template_data_model.rowCount()):
+            if measuringpoint == '__for_all_measuringpoints__':
+                for row in range(48):
+                    self.template_data_model.setData(self.template_data_model.index(row, 3, self.template_data_model.index(i, 0)), flag)
+                    # Вызываем сигнал dataChanged для обновления значений в treeView
+                    self.template_data_model.dataChanged.emit(self.template_data_model.index(row, 3, self.template_data_model.index(i, 0)), 
+                        self.template_data_model.index(row, 3, self.template_data_model.index(i, 0)), ())
+
             if measuringpoint == self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole):
                 for row in range(48):
                     # Начало временного интеравала
@@ -307,22 +320,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
                     # Окончание временного интервала
                     if ':'.join((end[:-2],end[-2:])) == self.template_data_model.index(row, 2, self.template_data_model.index(i, 0)).data(QtCore.Qt.DisplayRole):
                         return measuringpoint
-        # processing_interval = False
-        # for period in measuringchannel:
-        #     if (period.attrib['start'] == start):
-        #         processing_interval = True
-        #     # Обработка временного интервала
-        #     if processing_interval:
-        #         for value in period:
-        #             if flag == 0:
-        #                 try:
-        #                     del value.attrib['status']
-        #                 except KeyError:
-        #                     pass
-        #             else:
-        #                 value.set('status', '1')
-        #     if period.attrib['end'] == end:
-        #         return measuringchannel
 
 
     def adjustment_volume(self, measuringpoint, measuringchannels_value, start, end):
@@ -358,35 +355,15 @@ class LEMainWindow(QtWidgets.QMainWindow):
         start = ''.join(self.ui.startPeriod_comboBox.currentText().split(':'))
         end = ''.join(self.ui.endPeriod_comboBox.currentText().split(':'))
         flag = int(self.ui.comboBox_select_flag.currentText())
-        measuringpoint = self.ui.comboBox_selected_measuringpoint.currentText()
-        # root = self.tree.getroot()
         # Действия для вкладки "Статус"
         if self.ui.tabWidget.currentIndex() == 0:
             # Если присоединение было выбрано вручную 
             if self.ui.comboBox_measuringpoint_type.currentIndex() == 0:
-                # for child in self.tree.getroot().iterfind('.//'):
-                #     if (child.tag == 'measuringpoint') and (child.attrib['name'] == self.ui.comboBox_selected_measuringpoint.currentText()):
-                #         for measuringchannel in child:
-                #             self.change_status(measuringchannel, flag, start, end)
-
-                # for i in range(self.template_data_model.rowCount()):
-                #     if measuringpoint == self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole):
-                #         print(self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole))
-                self.change_status(measuringpoint, flag, start, end)
-
-            # Для всех некоммерческих значений
-            elif self.ui.comboBox_measuringpoint_type.currentIndex() == 1:
-                for measuringpoint_in in self.non_profit_measuringpoints:
-                    for measuringpoint in self.tree.getroot().findall('./area/measuringpoint'):
-                        if measuringpoint.attrib['name'] == measuringpoint_in:
-                            for measuringchannel in measuringpoint:
-                                self.change_status(measuringchannel, flag)
+                self.change_status(self.ui.comboBox_selected_measuringpoint.currentText(), flag, start, end)
             # Для всего шаблона
-            elif self.ui.comboBox_measuringpoint_type.currentIndex() == 2:
-                for child in self.tree.getroot().iterfind('.//'):
-                    if (child.tag == 'measuringpoint'):
-                        for measuringchannel in child:
-                            self.change_status(measuringchannel, flag)
+            elif self.ui.comboBox_measuringpoint_type.currentIndex() == 1:
+                self.change_status('__for_all_measuringpoints__', flag, start, end)
+
         # Действия для вкладки "Объем"
         elif self.ui.tabWidget.currentIndex() == 1:
             measuringchannels_value = {
@@ -395,10 +372,10 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 '03':(self.ui.lineEdit_r_plus.text(), self.ui.checkBox_save_r_plus.isChecked()),
                 '04':(self.ui.lineEdit_r_minus.text(), self.ui.checkBox_save_r_minus.isChecked())
             }
-            self.adjustment_volume(measuringpoint, measuringchannels_value, start, end)
-            # self.template_data_model.dataChanged()
-        # Перезагрузить treeview
-        # self.xml_to_treeview()
+            self.adjustment_volume(self.ui.comboBox_selected_measuringpoint.currentText(), measuringchannels_value, start, end)
+
+        # Подсветка измененных данных
+        self.highlight_changes()
 
 
     def send_message(self, msg, save=0):
