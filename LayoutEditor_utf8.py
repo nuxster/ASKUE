@@ -298,14 +298,15 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         processing_interval = False
         for i in range(self.template_data_model.rowCount()):
+            # Для всего шаблона
             if measuringpoint == '__for_all_measuringpoints__':
                 for row in range(48):
                     self.template_data_model.setData(self.template_data_model.index(row, 3, self.template_data_model.index(i, 0)), flag)
                     # Вызываем сигнал dataChanged для обновления значений в treeView
                     self.template_data_model.dataChanged.emit(self.template_data_model.index(row, 3, self.template_data_model.index(i, 0)), 
                         self.template_data_model.index(row, 3, self.template_data_model.index(i, 0)), ())
-
-            if measuringpoint == self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole):
+            # Для выбранного присоединения
+            elif measuringpoint == self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole):
                 for row in range(48):
                     # Начало временного интеравала
                     if ':'.join((start[:-2],start[-2:])) == self.template_data_model.index(row, 1, self.template_data_model.index(i, 0)).data(QtCore.Qt.DisplayRole):
@@ -326,23 +327,25 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         Правка значений на вкладке объем.
         '''
-        for measuringpoint_in in self.tree.getroot().iterfind('.//'):
+        for i in range(self.template_data_model.rowCount()):
             # Конкретная точка учета
-            if (measuringpoint_in.tag == 'measuringpoint') and (measuringpoint_in.attrib['name'] == measuringpoint):
-                for measuringchannels_in in measuringpoint_in:
-                    # Только выбранные каналы
-                    if (measuringchannels_in.attrib['code'] in measuringchannels_value.keys()) and (measuringchannels_value[measuringchannels_in.attrib['code']][1]):
-                        # Указанный период
-                        processing_interval = False
-                        for period in measuringchannels_in:
-                            if (period.attrib['start'] == start):
-                                processing_interval = True
-                            # Обработка временного интервала
-                            if processing_interval:
-                                for value in period:
-                                    value.text = measuringchannels_value[measuringchannels_in.attrib['code']][0]
-                            if period.attrib['end'] == end:
-                                processing_interval = False
+            if measuringpoint == self.template_data_model.index(i, 0).data(QtCore.Qt.DisplayRole):
+                print(measuringpoint)
+
+                # for measuringchannels_in in measuringpoint_in:
+                #     # Только выбранные каналы
+                #     if (measuringchannels_in.attrib['code'] in measuringchannels_value.keys()) and (measuringchannels_value[measuringchannels_in.attrib['code']][1]):
+                #         # Указанный период
+                #         processing_interval = False
+                #         for period in measuringchannels_in:
+                #             if (period.attrib['start'] == start):
+                #                 processing_interval = True
+                #             # Обработка временного интервала
+                #             if processing_interval:
+                #                 for value in period:
+                #                     value.text = measuringchannels_value[measuringchannels_in.attrib['code']][0]
+                #             if period.attrib['end'] == end:
+                #                 processing_interval = False
 
 
     def clicked_pushbutton_apply(self):
@@ -362,7 +365,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 self.change_status(self.ui.comboBox_selected_measuringpoint.currentText(), flag, start, end)
             # Для всего шаблона
             elif self.ui.comboBox_measuringpoint_type.currentIndex() == 1:
-                self.change_status('__for_all_measuringpoints__', flag, start, end)
+                self.change_status('__for_all_measuringpoints__', flag)
 
         # Действия для вкладки "Объем"
         elif self.ui.tabWidget.currentIndex() == 1:
