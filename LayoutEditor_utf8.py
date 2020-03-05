@@ -40,7 +40,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.template_data_model = QtGui.QStandardItemModel()
         self.template_data_model_reference = QtGui.QStandardItemModel()
         # self.template_data_model.setColumnCount(9)
-        self.header_labels = ['Точка учета', 'Начало', 'Окончание', 'Статус', 'A+', 'A-', 'R+', 'R-']
+        self.header_labels = ['Точка учета', 'Начало', 'Окончание', 'Статус', 'A+', 'A-', 'R+', 'R-', '']
         self.template_data_model.setHorizontalHeaderLabels(self.header_labels)
         self.ui.templateDataTree.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.ui.templateDataTree.setAlternatingRowColors(True)
