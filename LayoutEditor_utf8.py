@@ -10,6 +10,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication
 # GUI
 from gui import Ui_MainWindow
+# resources
+import res
 
 class LEMainWindow(QtWidgets.QMainWindow):
     '''
@@ -433,6 +435,7 @@ def main():
     app = QApplication(sys.argv)
     window = LEMainWindow()
     window.setWindowTitle('Редактор макетов')
+    window.setWindowIcon(QtGui.QIcon(':/img/LE_ico.png'))
     window.show()
     app.exec_()
 
