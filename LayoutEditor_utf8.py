@@ -54,10 +54,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.label_selected_measuringpoint.setText('Присоединение')
         # Комбобокс с присоединениями
         self.ui.comboBox_selected_measuringpoint.setStyleSheet('combobox-popup: 0;')
-        self.ui.comboBox_selected_measuringpoint.currentTextChanged.connect(lambda:
-            self.ui.templateDataTree.selectionModel().select(
-            self.template_data_model.indexFromItem(self.template_data_model.findItems(self.ui.comboBox_selected_measuringpoint.currentText(), column = 0)[0]),
-            QtCore.QItemSelectionModel.ClearAndSelect))
+        self.ui.comboBox_selected_measuringpoint.currentTextChanged.connect(self.treeview_select_row_in_combobox)
 
         # Комбобоксы выбора интервала
         self.ui.startTime_label.setText('Начало:')
@@ -93,6 +90,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.label_r_minus.setText('Реактивная отдача (R-)')
         # Валидация полей
         input_validator = QtGui.QRegExpValidator(QtCore.QRegExp('^\d\d{0,5}$'))
+
         self.ui.lineEdit_a_plus.setValidator(input_validator)
         self.ui.lineEdit_a_minus.setValidator(input_validator)
         self.ui.lineEdit_r_plus.setValidator(input_validator)
@@ -129,6 +127,18 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.about_action.triggered.connect(lambda: QtWidgets.QMessageBox.about(self, "О программе", "<h4 align=center>Программа для правки макета 80020<br><a href='https://github.com/nuxster/ASKUE'>Сайт программы</a></h4>"))
         about.addAction(self.about_action)
 
+    def treeview_select_row_in_combobox(self):
+        '''
+        Действия при выборе присоединения в combobox'e присоединениями.
+        '''
+        try:
+            self.ui.templateDataTree.selectionModel().select(
+                self.template_data_model.indexFromItem(self.template_data_model.findItems(
+                    self.ui.comboBox_selected_measuringpoint.currentText(), column = 0)[0]),
+                QtCore.QItemSelectionModel.ClearAndSelect)
+        # При открытии нового макета с уже загруженными данными возникает IndexError (**BUG**)
+        except IndexError:
+            pass
 
     def treeview_select_row(self):
         '''
@@ -195,7 +205,9 @@ class LEMainWindow(QtWidgets.QMainWindow):
         '''
         if self.template_data_model.rowCount() > 0:
             self.send_message('Сохрани макет', 1)
+            # Очистка основной и эталонной моделей
             self.template_data_model.clear()
+            self.template_data_model_reference.clear()
         self.templateXMLfile, _ = QtWidgets.QFileDialog().getOpenFileName(self, 
             'Открыть макет', os.path.dirname(os.path.realpath(__file__)), 'Макет XML (*xml)')
         if os.path.exists(self.templateXMLfile):
@@ -351,7 +363,10 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 for measuringchannel in measuringchannels_value.values():
                     column += 1
                     if measuringchannel[1]:
-                        self.template_data_model.setData(self.template_data_model.index(row, column, parent_index), measuringchannel[0])
+                        try:
+                            self.template_data_model.setData(self.template_data_model.index(row, column, parent_index), str(int(measuringchannel[0])))
+                        except ValueError:
+                            self.template_data_model.setData(self.template_data_model.index(row, column, parent_index), str(0))
                         # Вызываем сигнал dataChanged для обновления значений в treeView
                         self.template_data_model.dataChanged.emit(self.template_data_model.index(row, column, parent_index), 
                             self.template_data_model.index(row, column, parent_index), ())
