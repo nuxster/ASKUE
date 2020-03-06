@@ -190,6 +190,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.endPeriod_comboBox.addItems(end)
 
 
+
     def populate_comboBox_selected_measuringpoint(self, current_item=0, measuringpoints=0):
         '''
         Заполнение combobox'а присоединениями из текущего макета.
@@ -273,15 +274,23 @@ class LEMainWindow(QtWidgets.QMainWindow):
 
 
     def xml_to_treeview(self):
+
         '''
         Заполнение модели данных для treeview
         '''
+        # Проверка типа макета
+        if (self.tree.getroot().tag == 'message') and (self.tree.getroot().attrib['class'] == '80020'):
+            pass
+        else:
+            self.send_message('Макет не соответствует типу!')
+            return()
+        # Процедура заполнения дерева
         self.template_data_model.clear()
         self.template_data_model.setHorizontalHeaderLabels(self.header_labels)
         # Временный список для некоммерческих присоединений
         non_profit_measuringpoints_list = []
         measuringpoint_list = []
-        for child in self.tree.getroot().iterfind('.//'):
+        for child in self.tree.getroot().iterfind('.//'):                
             if child.tag == 'area':
                 for subchild in child:
                     # Точка учета
