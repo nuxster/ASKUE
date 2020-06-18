@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # coding: UTF-8
 
 import time
@@ -52,6 +51,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # Название вкладок
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_1), 'Статус')
         self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_2), 'Объём')
+        self.ui.tabWidget.setTabText(self.ui.tabWidget.indexOf(self.ui.tab_3), 'Направление')
         # Общая область
         self.ui.label_selected_measuringpoint.setText('Присоединение')
         # Комбобокс с присоединениями
@@ -92,11 +92,18 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.label_r_minus.setText('Реактивная отдача (R-)')
         # Валидация полей
         input_validator = QtGui.QRegExpValidator(QtCore.QRegExp('^\d\d{0,5}$'))
-
         self.ui.lineEdit_a_plus.setValidator(input_validator)
         self.ui.lineEdit_a_minus.setValidator(input_validator)
         self.ui.lineEdit_r_plus.setValidator(input_validator)
         self.ui.lineEdit_r_minus.setValidator(input_validator)
+        # Вкладкаа 'Направление'
+        self.ui.pushButton_A_change.setText('(A+) ↔ (A-)')
+        self.ui.pushButton_R_change.setText('(R+) ↔ (R-)')
+        self.ui.pushButton_A_change.clicked.connect(lambda: self.change_direction(channel = 'A'))
+        self.ui.pushButton_R_change.clicked.connect(lambda: self.change_direction(channel = 'R'))
+        # По умолчанию кнопки не активны
+        self.ui.pushButton_A_change.setEnabled(False)
+        self.ui.pushButton_R_change.setEnabled(False)
         # Кнопка применить
         self.ui.pushButton_apply.setText('Применить')
         # По умолчанию кнопка не активна
@@ -260,9 +267,14 @@ class LEMainWindow(QtWidgets.QMainWindow):
                                 for measuringchannel in subchild:
                                     for period in measuringchannel:
                                         for row in range(48):
+                                            # КОСЯК ТУТ
                                             if period.attrib['start'] == ''.join(self.template_data_model.index(row, 1, self.template_data_model.index(measuringpoint_count, 0)).data(QtCore.Qt.DisplayRole).split(':')):
                                                 for value in period:
-                                                    value.attrib['status'] = str(self.template_data_model.index(row, 3, self.template_data_model.index(measuringpoint_count, 0)).data(QtCore.Qt.DisplayRole))
+                                                    cur = self.template_data_model.index(row, 3, self.template_data_model.index(measuringpoint_count, 0)).data(QtCore.Qt.DisplayRole)
+                                                    ref = self.template_data_model_reference.index(row, 3, self.template_data_model_reference.index(measuringpoint_count, 0)).data(QtCore.Qt.DisplayRole)
+                                                    if cur != ref:
+                                                        value.attrib['status'] = str(cur)
+                                                    # value.attrib['status'] = str(self.template_data_model.index(row, 3, self.template_data_model.index(measuringpoint_count, 0)).data(QtCore.Qt.DisplayRole))
                                                     if self.template_data_model.index(row, 3 + int(measuringchannel.attrib['code']), self.template_data_model.index(measuringpoint_count, 0)).data(QtCore.Qt.DisplayRole) != '-':
                                                         value.text = self.template_data_model.index(row, 3 + int(measuringchannel.attrib['code']), self.template_data_model.index(measuringpoint_count, 0)).data(QtCore.Qt.DisplayRole)
         # Сохранение через fileDialog       
@@ -312,11 +324,13 @@ class LEMainWindow(QtWidgets.QMainWindow):
                                 for value_in in period_in:
                                     # Флаги
                                     try:
-                                        _flag = QtGui.QStandardItem(QtGui.QStandardItem(value_in.attrib['status']))
-                                        _flag.setBackground(QtGui.QColor('#F4AA90'))
-                                        flag.append(_flag)
-                                        measuringpoint.setBackground(QtGui.QColor('#F4AA90'))
-                                        non_profit_measuringpoints_list.append(measuringpoint.text())
+                                        # Подсвечивается точка учета и период со статусом == 1
+                                        if value_in.attrib['status'] == '1':
+                                            _flag = QtGui.QStandardItem(QtGui.QStandardItem(value_in.attrib['status']))
+                                            _flag.setBackground(QtGui.QColor('#F4AA90'))
+                                            flag.append(_flag)
+                                            measuringpoint.setBackground(QtGui.QColor('#F4AA90'))
+                                            non_profit_measuringpoints_list.append(measuringpoint.text())
                                     except KeyError:
                                         _flag = QtGui.QStandardItem('0')
                                         flag.append(_flag)
@@ -334,8 +348,10 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.templateDataTree.resizeColumnToContents(0)
         # Активировать пункт меню сохраняющий макет
         self.save_xml_action.setEnabled(True)
-        # Активировать кнопку 'Применить'
+        # Активировать кнопки
         self.ui.pushButton_apply.setEnabled(True)
+        self.ui.pushButton_A_change.setEnabled(True)
+        self.ui.pushButton_R_change.setEnabled(True)
 
     
     def change_status(self, parent_index, flag, start = '0000', end = '0000'):
@@ -386,13 +402,47 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 processing_interval = False
 
 
+    def change_direction(self, channel):
+        '''
+        Изменение направления измерений (поменять местами данные на каналах + и -)
+        '''
+        start = ''.join(self.ui.startPeriod_comboBox.currentText().split(':'))
+        end = ''.join(self.ui.endPeriod_comboBox.currentText().split(':'))
+        parent_index = self.template_data_model.indexFromItem(self.template_data_model.findItems(self.ui.comboBox_selected_measuringpoint.currentText(), column = 0)[0])
+        
+        column = 4 if channel == 'A' else 6
+        processing_interval = False
+        
+        for row in range(48):
+            # Начало временного интеравала
+            if ':'.join((start[:-2],start[-2:])) == self.template_data_model.index(row, 1, parent_index).data(QtCore.Qt.DisplayRole):
+                processing_interval = True
+
+            # Обработка временного интервала
+            if processing_interval:
+                plus = self.template_data_model.index(row, column, parent_index).data(QtCore.Qt.DisplayRole)
+                minus = self.template_data_model.index(row, column+1, parent_index).data(QtCore.Qt.DisplayRole)
+            
+                self.template_data_model.setData(self.template_data_model.index(row, column, parent_index), minus)
+                self.template_data_model.setData(self.template_data_model.index(row, column+1, parent_index), plus)
+        
+                # Вызываем сигнал dataChanged для обновления значений в treeView
+                self.template_data_model.dataChanged.emit(self.template_data_model.index(row, column, parent_index), 
+                    self.template_data_model.index(row, column, parent_index), ())
+            
+            # Окончание временного интервала
+            if ':'.join((end[:-2],end[-2:])) == self.template_data_model.index(row, 2, parent_index).data(QtCore.Qt.DisplayRole):
+                processing_interval = False
+        self.highlight_changes()
+
+
     def clicked_pushbutton_apply(self):
         '''
         Действия по нажатию кнопки "Применить".
         '''
         if self.template_data_model.rowCount() < 1:
             self.send_message('Требуется загрузить макет.')
-            return()
+            return() # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         start = ''.join(self.ui.startPeriod_comboBox.currentText().split(':'))
         end = ''.join(self.ui.endPeriod_comboBox.currentText().split(':'))
         flag = int(self.ui.comboBox_select_flag.currentText())
@@ -417,6 +467,10 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 '04':(self.ui.lineEdit_r_minus.text(), self.ui.checkBox_save_r_minus.isChecked())
             }
             self.adjustment_volume(parent_index, measuringchannels_value, start, end)
+        
+        # Действия для вкладки "Направление"
+        elif self.ui.tabWidget.currentIndex() == 2:
+            pass
 
         # Подсветка измененных данных
         self.highlight_changes()
