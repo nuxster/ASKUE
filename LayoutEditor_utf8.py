@@ -1,5 +1,6 @@
 # coding: UTF-8
 
+
 import time
 import sys
 import os
@@ -11,6 +12,7 @@ from PyQt5.QtWidgets import QApplication
 from gui import Ui_MainWindow
 # resources
 import res
+
 
 class LEMainWindow(QtWidgets.QMainWindow):
     '''
@@ -57,7 +59,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # Комбобокс с присоединениями
         self.ui.comboBox_selected_measuringpoint.setStyleSheet('combobox-popup: 0;')
         self.ui.comboBox_selected_measuringpoint.currentTextChanged.connect(self.treeview_select_row_in_combobox)
-
         # Комбобоксы выбора интервала
         self.ui.startTime_label.setText('Начало:')
         self.ui.startPeriod_comboBox.setStyleSheet('combobox-popup: 0;')
@@ -136,6 +137,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.about_action.triggered.connect(lambda: QtWidgets.QMessageBox.about(self, "О программе", "<h4 align=center>Программа для правки макета 80020<br><a href='https://github.com/nuxster/ASKUE'>Сайт программы</a></h4>"))
         about.addAction(self.about_action)
 
+
     def treeview_select_row_in_combobox(self):
         '''
         Действия при выборе присоединения в combobox'e присоединениями.
@@ -148,6 +150,7 @@ class LEMainWindow(QtWidgets.QMainWindow):
         # При открытии нового макета с уже загруженными данными возникает IndexError (**BUG**)
         except IndexError:
             pass
+
 
     def treeview_select_row(self):
         '''
@@ -195,7 +198,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
         self.ui.startPeriod_comboBox.setCurrentIndex(self.ui.startPeriod_comboBox.findText(start_time))
         self.ui.endPeriod_comboBox.clear()
         self.ui.endPeriod_comboBox.addItems(end)
-
 
 
     def populate_comboBox_selected_measuringpoint(self, current_item=0, measuringpoints=0):
@@ -409,27 +411,26 @@ class LEMainWindow(QtWidgets.QMainWindow):
         start = ''.join(self.ui.startPeriod_comboBox.currentText().split(':'))
         end = ''.join(self.ui.endPeriod_comboBox.currentText().split(':'))
         parent_index = self.template_data_model.indexFromItem(self.template_data_model.findItems(self.ui.comboBox_selected_measuringpoint.currentText(), column = 0)[0])
-        
+        # Выбор направления
         column = 4 if channel == 'A' else 6
         processing_interval = False
-        
         for row in range(48):
             # Начало временного интеравала
             if ':'.join((start[:-2],start[-2:])) == self.template_data_model.index(row, 1, parent_index).data(QtCore.Qt.DisplayRole):
                 processing_interval = True
-
             # Обработка временного интервала
             if processing_interval:
-                plus = self.template_data_model.index(row, column, parent_index).data(QtCore.Qt.DisplayRole)
-                minus = self.template_data_model.index(row, column+1, parent_index).data(QtCore.Qt.DisplayRole)
-            
-                self.template_data_model.setData(self.template_data_model.index(row, column, parent_index), minus)
-                self.template_data_model.setData(self.template_data_model.index(row, column+1, parent_index), plus)
-        
+                plus = int(self.template_data_model.index(row, column, parent_index).data(QtCore.Qt.DisplayRole))
+                minus = int(self.template_data_model.index(row, column+1, parent_index).data(QtCore.Qt.DisplayRole))
+                # Суммирование не полных получасовок
+                if minus != 0 and plus != 0:
+                    plus += minus
+                    minus = 0
+                self.template_data_model.setData(self.template_data_model.index(row, column, parent_index), str(minus))
+                self.template_data_model.setData(self.template_data_model.index(row, column+1, parent_index), str(plus))
                 # Вызываем сигнал dataChanged для обновления значений в treeView
                 self.template_data_model.dataChanged.emit(self.template_data_model.index(row, column, parent_index), 
                     self.template_data_model.index(row, column, parent_index), ())
-            
             # Окончание временного интервала
             if ':'.join((end[:-2],end[-2:])) == self.template_data_model.index(row, 2, parent_index).data(QtCore.Qt.DisplayRole):
                 processing_interval = False
@@ -457,7 +458,6 @@ class LEMainWindow(QtWidgets.QMainWindow):
             elif self.ui.comboBox_measuringpoint_type.currentIndex() == 1:
                 for parent_row in range(self.template_data_model.rowCount()):
                     self.change_status(self.template_data_model.index(parent_row, 0), flag, start, end)
-
         # Действия для вкладки "Объем"
         elif self.ui.tabWidget.currentIndex() == 1:
             measuringchannels_value = {
@@ -467,11 +467,9 @@ class LEMainWindow(QtWidgets.QMainWindow):
                 '04':(self.ui.lineEdit_r_minus.text(), self.ui.checkBox_save_r_minus.isChecked())
             }
             self.adjustment_volume(parent_index, measuringchannels_value, start, end)
-        
         # Действия для вкладки "Направление"
         elif self.ui.tabWidget.currentIndex() == 2:
             pass
-
         # Подсветка измененных данных
         self.highlight_changes()
 
